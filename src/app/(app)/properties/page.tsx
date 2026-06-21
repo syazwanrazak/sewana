@@ -9,6 +9,7 @@ import { PageHeader } from '@/components/layout/Header'
 import { propertyRevenue, propertyOccupancy } from '@/lib/seed'
 import { rm } from '@/lib/utils'
 import { AddPropertyModal } from '@/components/properties/AddPropertyModal'
+import { PropertyCardMenu } from '@/components/properties/PropertyActions'
 import { createClient } from '@/lib/supabase/client'
 import type { Property } from '@/types'
 
@@ -67,18 +68,21 @@ export default function PropertiesPage() {
                     style={{ borderTop: `3px solid ${p.color || '#0F766E'}` }}
                   >
                     <div className="flex justify-between items-start mb-4">
-                      <div className="flex gap-3 items-center">
+                      <div className="flex gap-3 items-center min-w-0">
                         <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 bg-accent text-primary">
                           <Building2 className="w-5 h-5" />
                         </div>
-                        <div>
-                          <div className="font-bold text-[15px]">{p.name}</div>
-                          <div className="text-xs text-muted-foreground mt-0.5">{p.address}</div>
+                        <div className="min-w-0">
+                          <div className="font-bold text-[15px] truncate">{p.name}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5 truncate">{p.address}</div>
                         </div>
                       </div>
-                      <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-muted text-muted-foreground whitespace-nowrap">
-                        {p.kind}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-muted text-muted-foreground whitespace-nowrap hidden sm:inline">
+                          {p.kind}
+                        </span>
+                        <PropertyCardMenu property={p} onUpdated={load} />
+                      </div>
                     </div>
 
                     <div className="flex gap-2 mb-4">

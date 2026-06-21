@@ -9,6 +9,7 @@ import { rm, formatDate } from '@/lib/utils'
 import { PriorityBadge } from '@/components/shared/Badge'
 import { AddUnitButton } from '@/components/properties/AddUnitButton'
 import { UtilityTracker } from '@/components/properties/UtilityTracker'
+import { PropertyActions } from '@/components/properties/PropertyActions'
 
 export default async function PropertyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -81,10 +82,11 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                 </div>
               </div>
             </div>
-            <div className="flex gap-4 sm:gap-6 w-full sm:w-auto">
+            <div className="flex items-center gap-4 sm:gap-6 w-full sm:w-auto flex-wrap">
               <div><div className="text-[11px] text-muted-foreground mb-1">Occupancy</div><div className="text-lg md:text-xl font-extrabold text-primary">{occ}%</div></div>
               <div><div className="text-[11px] text-muted-foreground mb-1">Monthly</div><div className="text-lg md:text-xl font-extrabold">{rm(rev)}</div></div>
               <div><div className="text-[11px] text-muted-foreground mb-1">Contract</div><div className="text-lg md:text-xl font-extrabold">{property.contract_expiry ? formatDate(property.contract_expiry) : '—'}</div></div>
+              <PropertyActions property={property as any} />
             </div>
           </div>
 

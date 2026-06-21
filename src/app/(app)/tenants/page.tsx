@@ -10,6 +10,12 @@ import { RentalTypeBadge, PaymentStatusBadge } from '@/components/shared/Badge'
 import { rm, formatDate } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { AddTenantModal } from '@/components/tenants/AddTenantModal'
+import { EditTenantModal } from '@/components/tenants/EditTenantModal'
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
+  DropdownMenuItem, DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu'
+import { MoreHorizontal, Pencil, UserX } from 'lucide-react'
 import type { RentalType, PaymentStatus, Property } from '@/types'
 
 const FILTERS: { label: string; value: 'all' | RentalType }[] = [
@@ -22,6 +28,8 @@ const FILTERS: { label: string; value: 'all' | RentalType }[] = [
 interface TenantRow {
   id: string
   name: string
+  email?: string
+  phone?: string
   color: string
   property: string
   sub: string
@@ -29,6 +37,8 @@ interface TenantRow {
   rent: number
   status: PaymentStatus
   since: string
+  contractId?: string
+  unitId?: string
 }
 
 export default function TenantsPage() {
@@ -37,6 +47,7 @@ export default function TenantsPage() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | RentalType>('all')
   const [showModal, setShowModal] = useState(false)
+  const [editingTenant, setEditingTenant] = useState<TenantRow | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -73,6 +84,8 @@ export default function TenantsPage() {
       return {
         id: t.id,
         name: t.name,
+        email: t.email,
+        phone: t.phone,
         color: t.color ?? '#0F766E',
         property: contract?.property?.name ?? '—',
         sub: contract?.unit?.name ?? '—',
@@ -80,6 +93,8 @@ export default function TenantsPage() {
         rent: contract?.monthly_rent ?? 0,
         status: (latestPayment?.status ?? 'pending') as PaymentStatus,
         since: formatDate(t.created_at),
+        contractId: contract?.id,
+        unitId: contract?.unit?.id,
       }
     })
 
@@ -91,6 +106,41 @@ export default function TenantsPage() {
   useEffect(() => { load() }, [load])
 
   const filtered = filter === 'all' ? tenants : tenants.filter(t => t.type === filter)
+
+  async function removeTenant(t: TenantRow) {
+    if (!confirm(`Remove "${t.name}"?\n\nThis ends their contract and frees the assigned unit.`)) return
+    const supabase = createClient()
+    if (t.contractId) {
+      await supabase.from('contracts').update({ status: 'terminated' }).eq('id', t.contractId)
+    }
+    if (t.unitId) {
+      await supabase.from('units').update({ is_occupied: false }).eq('id', t.unitId)
+    }
+    await supabase.from('tenants').delete().eq('id', t.id)
+    load()
+  }
+
+  function TenantMenu({ t }: { t: TenantRow }) {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex-shrink-0"
+          onClick={e => e.stopPropagation()}
+        >
+          <MoreHorizontal className="w-4 h-4" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="bottom" align="end">
+          <DropdownMenuItem onClick={() => setEditingTenant(t)}>
+            <Pencil className="w-3.5 h-3.5" /> Edit Details
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onClick={() => removeTenant(t)}>
+            <UserX className="w-3.5 h-3.5" /> Remove Tenant
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
+  }
 
   return (
     <main className="flex-1 overflow-y-auto">
@@ -150,23 +200,25 @@ export default function TenantsPage() {
                         <span className="text-xs font-bold text-primary">{t.rent ? rm(t.rent) : '—'}/mo</span>
                       </div>
                     </div>
+                    <TenantMenu t={t} />
                   </div>
                 ))}
               </div>
 
               {/* Desktop table */}
               <div className="hidden md:block">
-                <div className="grid grid-cols-[2.2fr_1.8fr_1.3fr_1fr_1fr] gap-3 px-5 py-3 border-b text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
+                <div className="grid grid-cols-[2.2fr_1.8fr_1.3fr_1fr_1fr_36px] gap-3 px-5 py-3 border-b text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
                   <span>Tenant</span>
                   <span>Assignment</span>
                   <span>Type</span>
                   <span>Rent</span>
                   <span>Status</span>
+                  <span />
                 </div>
                 {filtered.map(t => (
                   <div
                     key={t.id}
-                    className="grid grid-cols-[2.2fr_1.8fr_1.3fr_1fr_1fr] gap-3 px-5 py-3.5 border-b last:border-0 items-center hover:bg-muted/30 transition-colors cursor-pointer"
+                    className="grid grid-cols-[2.2fr_1.8fr_1.3fr_1fr_1fr_36px] gap-3 px-5 py-3.5 border-b last:border-0 items-center hover:bg-muted/30 transition-colors"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <Avatar name={t.name} color={t.color} size="md" />
@@ -182,6 +234,7 @@ export default function TenantsPage() {
                     <div><RentalTypeBadge type={t.type} /></div>
                     <div className="font-bold text-[13.5px]">{t.rent ? rm(t.rent) : '—'}</div>
                     <div><PaymentStatusBadge status={t.status} /></div>
+                    <TenantMenu t={t} />
                   </div>
                 ))}
               </div>
@@ -196,6 +249,15 @@ export default function TenantsPage() {
         onCreated={load}
         properties={properties}
       />
+
+      {editingTenant && (
+        <EditTenantModal
+          open={!!editingTenant}
+          onClose={() => setEditingTenant(null)}
+          onUpdated={() => { setEditingTenant(null); load() }}
+          tenant={editingTenant}
+        />
+      )}
     </main>
   )
 }
