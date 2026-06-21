@@ -101,9 +101,9 @@ export const DOCUMENTS: Document[] = [
   { id: 'd6', property_id: 'p3', name: 'Pemeriksaan Hartanah — Wangsa Maju.jpg', category: 'Reports', rental_type_tag: 'Mixed', file_url: '#', file_size: '3.1 MB', file_type: 'IMG', created_at: '2026-05-15' },
 ]
 
-// Helper: get monthly revenue for a property
+// Helper: get total monthly rent potential for a property (all units, occupied or not)
 export function propertyRevenue(p: Property): number {
-  return (p.units || []).filter(u => u.is_occupied).reduce((sum, u) => sum + u.price, 0)
+  return (p.units || []).reduce((sum, u) => sum + u.price, 0)
 }
 
 // Helper: get occupancy % for a property
