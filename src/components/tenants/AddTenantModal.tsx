@@ -24,10 +24,17 @@ const RENTAL_TYPES: { value: RentalType; label: string }[] = [
   { value: 'parking', label: 'Parking' },
 ]
 
+const today = () => new Date().toISOString().slice(0, 10)
+const nextYear = () => {
+  const d = new Date(); d.setFullYear(d.getFullYear() + 1)
+  return d.toISOString().slice(0, 10)
+}
+
 export function AddTenantModal({ open, onClose, onCreated, properties }: Props) {
   const [form, setForm] = useState({
     name: '', email: '', phone: '',
     propertyId: '', rentalType: 'room' as RentalType, unitId: '',
+    startDate: today(), endDate: nextYear(),
   })
   const [loading, setLoading] = useState(false)
 
@@ -73,8 +80,6 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
 
     // 2. Create a contract linking the tenant to the property/unit
     const selectedUnit = subOptions.find(u => u.id === form.unitId)
-    const today = new Date().toISOString().slice(0, 10)
-    const nextYear = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
     const { error: contractErr } = await supabase.from('contracts').insert({
       tenant_id: tenant.id,
@@ -83,8 +88,8 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
       rental_type: form.rentalType,
       monthly_rent: selectedUnit?.price ?? 0,
       deposit: 0,
-      start_date: today,
-      end_date: nextYear,
+      start_date: form.startDate,
+      end_date: form.endDate,
       status: 'active',
     })
 
@@ -100,7 +105,7 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
     }
 
     toast.success(`Tenant "${form.name}" added!`)
-    setForm({ name: '', email: '', phone: '', propertyId: '', rentalType: 'room', unitId: '' })
+    setForm({ name: '', email: '', phone: '', propertyId: '', rentalType: 'room', unitId: '', startDate: today(), endDate: nextYear() })
     setLoading(false)
     onClose()
     onCreated()
@@ -195,6 +200,29 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
               </Select>
             </div>
           )}
+
+          <div className="border-t pt-4">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">Contract Duration</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="mb-1.5 block">Start Date</Label>
+                <Input
+                  type="date"
+                  value={form.startDate}
+                  onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label className="mb-1.5 block">End Date</Label>
+                <Input
+                  type="date"
+                  value={form.endDate}
+                  min={form.startDate}
+                  onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
 
           <div className="flex gap-3 mt-2">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
