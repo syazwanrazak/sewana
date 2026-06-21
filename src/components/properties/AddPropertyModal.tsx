@@ -19,11 +19,13 @@ interface Props {
 const PROPERTY_KINDS = ['Apartment Block', 'Full Unit', 'Room Rental', 'Mixed Use']
 
 export function AddPropertyModal({ open, onClose, onCreated }: Props) {
-  const [form, setForm] = useState({ name: '', address: '', kind: '', ownerName: '', ownerPhone: '' })
+  const [form, setForm] = useState({ name: '', address: '', kind: '', ownerName: '', ownerPhone: '', monthlyRent: '' })
   const [loading, setLoading] = useState(false)
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }))
+
+  const isFullUnit = form.kind === 'Full Unit'
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -31,10 +33,14 @@ export function AddPropertyModal({ open, onClose, onCreated }: Props) {
       toast.error('Please fill in all required fields.')
       return
     }
+    if (isFullUnit && !form.monthlyRent) {
+      toast.error('Please enter the monthly rent for this unit.')
+      return
+    }
     setLoading(true)
     const supabase = createClient()
 
-    // Try to create owner record — non-blocking if the table doesn't exist yet
+    // Try to create owner record
     let owner_id: string | null = null
     if (form.ownerName.trim()) {
       const { data: owner } = await supabase
@@ -46,22 +52,33 @@ export function AddPropertyModal({ open, onClose, onCreated }: Props) {
     }
 
     // Create the property
-    const { error } = await supabase.from('properties').insert({
+    const { data: property, error } = await supabase.from('properties').insert({
       name: form.name.trim(),
       address: form.address.trim(),
       kind: form.kind,
       color: pickColor(form.name),
       owner_id,
-    })
+    }).select('id').single()
 
-    if (error) {
-      toast.error('Failed to add property: ' + error.message)
+    if (error || !property) {
+      toast.error('Failed to add property: ' + error?.message)
       setLoading(false)
       return
     }
 
+    // For Full Unit properties, auto-create the single rentable unit
+    if (isFullUnit && form.monthlyRent) {
+      await supabase.from('units').insert({
+        property_id: property.id,
+        name: 'Full Unit',
+        unit_type: 'full',
+        price: parseFloat(form.monthlyRent),
+        is_occupied: false,
+      })
+    }
+
     toast.success(`"${form.name}" added!`)
-    setForm({ name: '', address: '', kind: '', ownerName: '', ownerPhone: '' })
+    setForm({ name: '', address: '', kind: '', ownerName: '', ownerPhone: '', monthlyRent: '' })
     setLoading(false)
     onClose()
     onCreated()
@@ -72,7 +89,7 @@ export function AddPropertyModal({ open, onClose, onCreated }: Props) {
       <DialogContent className="sm:max-w-[460px]">
         <DialogHeader>
           <DialogTitle>Add Property</DialogTitle>
-          <p className="text-sm text-muted-foreground">Create a property, then add rooms &amp; parking.</p>
+          <p className="text-sm text-muted-foreground">Full Unit creates one rentable unit automatically. Room Rental lets you add rooms individually.</p>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-1">
@@ -84,18 +101,35 @@ export function AddPropertyModal({ open, onClose, onCreated }: Props) {
             <Label className="mb-1.5 block">Address <span className="text-red-500">*</span></Label>
             <Input placeholder="Street, city" value={form.address} onChange={set('address')} />
           </div>
-          <div>
-            <Label className="mb-1.5 block">Property Type <span className="text-red-500">*</span></Label>
-            <Select onValueChange={(v: string | null) => setForm(f => ({ ...f, kind: v ?? '' }))}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select type…" />
-              </SelectTrigger>
-              <SelectContent>
-                {PROPERTY_KINDS.map(k => (
-                  <SelectItem key={k} value={k}>{k}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="mb-1.5 block">Property Type <span className="text-red-500">*</span></Label>
+              <Select onValueChange={(v: string | null) => setForm(f => ({ ...f, kind: v ?? '', monthlyRent: '' }))}>
+                <SelectTrigger>
+                  {form.kind
+                    ? <span>{form.kind}</span>
+                    : <span className="text-muted-foreground">Select type…</span>
+                  }
+                </SelectTrigger>
+                <SelectContent>
+                  {PROPERTY_KINDS.map(k => (
+                    <SelectItem key={k} value={k}>{k}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {isFullUnit && (
+              <div>
+                <Label className="mb-1.5 block">Monthly Rent (RM) <span className="text-red-500">*</span></Label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 1500"
+                  value={form.monthlyRent}
+                  onChange={set('monthlyRent')}
+                />
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

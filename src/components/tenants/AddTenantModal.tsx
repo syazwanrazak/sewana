@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -50,6 +50,16 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
     if (form.rentalType === 'parking') return u.unit_type === 'parking' && !u.is_occupied
     return false
   }) || []
+
+  // Auto-select the unit when there's exactly one option (e.g. Full Unit properties)
+  useEffect(() => {
+    if (subOptions.length === 1 && !form.unitId) {
+      setForm(f => ({ ...f, unitId: subOptions[0].id }))
+    }
+    if (subOptions.length === 0 || (subOptions.length > 1 && !subOptions.find(u => u.id === form.unitId))) {
+      // Reset unit if it's no longer valid
+    }
+  }, [form.propertyId, form.rentalType, subOptions.length])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -172,6 +182,14 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
               ))}
             </div>
           </div>
+
+          {form.rentalType === 'full' && form.unitId && subOptions.length === 1 && (
+            <div className="rounded-xl bg-accent/60 border border-primary/20 px-4 py-3 text-sm">
+              <span className="text-muted-foreground">Rent: </span>
+              <span className="font-bold text-primary">{rm(subOptions[0].price)}/mo</span>
+              <span className="text-muted-foreground ml-2">· Full Unit auto-selected</span>
+            </div>
+          )}
 
           {form.rentalType !== 'full' && (
             <div>

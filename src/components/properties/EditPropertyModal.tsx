@@ -27,11 +27,13 @@ export function EditPropertyModal({ open, onClose, onUpdated, property }: Props)
     contractExpiry: '',
     ownerName: '',
     ownerPhone: '',
+    monthlyRent: '',
   })
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (open) {
+      const fullUnit = property.units?.find(u => u.unit_type === 'full')
       setForm({
         name: property.name,
         address: property.address,
@@ -39,6 +41,7 @@ export function EditPropertyModal({ open, onClose, onUpdated, property }: Props)
         contractExpiry: property.contract_expiry?.slice(0, 10) ?? '',
         ownerName: property.owner?.name ?? '',
         ownerPhone: property.owner?.phone ?? '',
+        monthlyRent: fullUnit ? String(fullUnit.price) : '',
       })
     }
   }, [open, property])
@@ -87,6 +90,22 @@ export function EditPropertyModal({ open, onClose, onUpdated, property }: Props)
       return
     }
 
+    // Update full unit price if applicable
+    if (form.kind === 'Full Unit' && form.monthlyRent) {
+      const existingFull = property.units?.find(u => u.unit_type === 'full')
+      if (existingFull) {
+        await supabase.from('units').update({ price: parseFloat(form.monthlyRent) }).eq('id', existingFull.id)
+      } else {
+        await supabase.from('units').insert({
+          property_id: property.id,
+          name: 'Full Unit',
+          unit_type: 'full',
+          price: parseFloat(form.monthlyRent),
+          is_occupied: false,
+        })
+      }
+    }
+
     toast.success('Property updated!')
     setLoading(false)
     onClose()
@@ -132,6 +151,19 @@ export function EditPropertyModal({ open, onClose, onUpdated, property }: Props)
               <Input type="date" value={form.contractExpiry} onChange={set('contractExpiry')} />
             </div>
           </div>
+
+          {form.kind === 'Full Unit' && (
+            <div>
+              <Label className="mb-1.5 block">Monthly Rent (RM)</Label>
+              <Input
+                type="number"
+                min="0"
+                placeholder="e.g. 1500"
+                value={form.monthlyRent}
+                onChange={set('monthlyRent')}
+              />
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="mb-1.5 block">Owner Name</Label>
