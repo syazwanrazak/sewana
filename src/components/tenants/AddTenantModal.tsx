@@ -108,7 +108,7 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="w-[480px]">
+      <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>Add Tenant</DialogTitle>
           <p className="text-sm text-muted-foreground">Assign to a full unit, a room, or a parking spot.</p>

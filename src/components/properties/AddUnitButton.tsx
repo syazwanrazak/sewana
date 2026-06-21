@@ -66,7 +66,7 @@ export function AddUnitButton({ propertyId, unitType }: Props) {
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="w-[380px]">
+        <DialogContent className="sm:max-w-[380px]">
           <DialogHeader>
             <DialogTitle>Add {label}</DialogTitle>
             <p className="text-sm text-muted-foreground">This unit will appear under this property.</p>

@@ -135,7 +135,7 @@ export function UtilityTracker({ propertyId, month, monthLabel, initial }: Props
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="w-[420px]">
+        <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
             <DialogTitle>Utility Tracking · {monthLabel}</DialogTitle>
             <p className="text-sm text-muted-foreground">Add any bills — water, electricity, guard fee, maintenance, etc.</p>

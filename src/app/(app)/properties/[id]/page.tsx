@@ -57,21 +57,21 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
 
   return (
     <main className="flex-1 overflow-y-auto">
-      <div className="max-w-[1320px] mx-auto px-7 py-6">
+      <div className="max-w-[1320px] mx-auto px-4 py-5 md:px-7 md:py-6">
         <Link href="/properties" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground font-semibold hover:text-foreground mb-4">
           <ArrowLeft className="w-4 h-4" /> All Properties
         </Link>
 
         <Card className="overflow-hidden">
           {/* Header */}
-          <div className="px-6 py-5 flex justify-between items-start gap-4 flex-wrap border-b">
-            <div className="flex gap-4 items-center">
-              <div className="w-14 h-14 rounded-2xl bg-accent text-primary flex items-center justify-center flex-shrink-0">
-                <Building2 className="w-7 h-7" />
+          <div className="px-4 md:px-6 py-4 md:py-5 flex flex-col sm:flex-row justify-between items-start gap-4 border-b">
+            <div className="flex gap-3 md:gap-4 items-center">
+              <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-accent text-primary flex items-center justify-center flex-shrink-0">
+                <Building2 className="w-6 h-6 md:w-7 md:h-7" />
               </div>
               <div>
-                <div className="flex items-center gap-3">
-                  <h1 className="text-xl font-extrabold tracking-tight">{property.name}</h1>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-lg md:text-xl font-extrabold tracking-tight">{property.name}</h1>
                   <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-muted text-muted-foreground">{property.kind}</span>
                   {isExpired && <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-600">Contract Expired</span>}
                 </div>
@@ -81,16 +81,16 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                 </div>
               </div>
             </div>
-            <div className="flex gap-6">
-              <div><div className="text-[11px] text-muted-foreground mb-1">Occupancy</div><div className="text-xl font-extrabold text-primary">{occ}%</div></div>
-              <div><div className="text-[11px] text-muted-foreground mb-1">Monthly</div><div className="text-xl font-extrabold">{rm(rev)}</div></div>
-              <div><div className="text-[11px] text-muted-foreground mb-1">Contract</div><div className="text-xl font-extrabold">{property.contract_expiry ? formatDate(property.contract_expiry) : '—'}</div></div>
+            <div className="flex gap-4 sm:gap-6 w-full sm:w-auto">
+              <div><div className="text-[11px] text-muted-foreground mb-1">Occupancy</div><div className="text-lg md:text-xl font-extrabold text-primary">{occ}%</div></div>
+              <div><div className="text-[11px] text-muted-foreground mb-1">Monthly</div><div className="text-lg md:text-xl font-extrabold">{rm(rev)}</div></div>
+              <div><div className="text-[11px] text-muted-foreground mb-1">Contract</div><div className="text-lg md:text-xl font-extrabold">{property.contract_expiry ? formatDate(property.contract_expiry) : '—'}</div></div>
             </div>
           </div>
 
           {/* Tabs */}
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="w-full justify-start rounded-none border-b px-6 bg-transparent h-auto gap-1 pb-0">
+            <TabsList className="w-full justify-start rounded-none border-b px-3 md:px-6 bg-transparent h-auto gap-1 pb-0 overflow-x-auto">
               {[
                 { value: 'overview',    label: 'Overview' },
                 { value: 'rooms',       label: 'Rooms' },
@@ -108,10 +108,10 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
               ))}
             </TabsList>
 
-            <div className="p-6">
+            <div className="p-4 md:p-6">
               {/* Overview */}
               <TabsContent value="overview">
-                <div className="grid grid-cols-4 gap-3 mb-5">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
                   {[
                     { v: rooms.filter((r: any) => r.is_occupied).length, t: rooms.length, label: 'Rooms Occupied' },
                     { v: parking.filter((r: any) => r.is_occupied).length, t: parking.length, label: 'Parking Assigned' },
@@ -126,7 +126,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                     </div>
                   ))}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <UtilityTracker
                     propertyId={property.id}
                     month={currentMonth}

@@ -78,7 +78,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="flex-1 overflow-y-auto">
-      <div className="max-w-[1320px] mx-auto px-7 py-7">
+      <div className="max-w-[1320px] mx-auto px-4 py-5 md:px-7 md:py-7">
         <PageHeader
           title="Good morning 👋"
           subtitle={`Portfolio overview — ${new Date().toLocaleDateString('en-MY', { month: 'long', year: 'numeric' })}`}
@@ -101,7 +101,7 @@ export default async function DashboardPage() {
         ) : (
           <>
             {/* Stats */}
-            <div className="grid grid-cols-5 gap-3 mb-5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
               <StatCard
                 icon={Building2} iconBg="bg-accent text-primary"
                 label="Total Properties" value={properties.length}
@@ -129,7 +129,7 @@ export default async function DashboardPage() {
             </div>
 
             {/* Charts row */}
-            <div className="grid grid-cols-[1.7fr_1fr] gap-4 mb-4">
+            <div className="grid grid-cols-1 lg:grid-cols-[1.7fr_1fr] gap-4 mb-4">
               <Card className="p-5">
                 <div className="flex justify-between items-start mb-4">
                   <div>
@@ -196,7 +196,7 @@ export default async function DashboardPage() {
             </div>
 
             {/* Bottom row */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <Card className="p-5 bg-gradient-to-br from-accent/60 to-card">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-6 h-6 rounded-lg bg-primary text-white flex items-center justify-center text-xs">✦</div>

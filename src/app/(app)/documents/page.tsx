@@ -28,7 +28,7 @@ export default function DocumentsPage() {
 
   return (
     <main className="flex-1 overflow-y-auto">
-      <div className="max-w-[1320px] mx-auto px-7 py-7">
+      <div className="max-w-[1320px] mx-auto px-4 py-5 md:px-7 md:py-7">
         <PageHeader
           title="Documents"
           subtitle="Contracts, agreements, receipts and reports."
@@ -61,7 +61,7 @@ export default function DocumentsPage() {
         </div>
 
         {/* Document grid */}
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
           {enriched.map(d => (
             <Card
               key={d.id}

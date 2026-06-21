@@ -58,7 +58,7 @@ export function NewTicketModal({ open, onClose, onCreated, properties }: Props) 
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="w-[480px]">
+      <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>New Maintenance Request</DialogTitle>
           <p className="text-sm text-muted-foreground">Link the issue to a property, room or parking spot.</p>

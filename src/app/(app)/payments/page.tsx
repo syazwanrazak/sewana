@@ -43,13 +43,13 @@ export default function PaymentsPage() {
 
   return (
     <main className="flex-1 overflow-y-auto">
-      <div className="max-w-[1320px] mx-auto px-7 py-7">
+      <div className="max-w-[1320px] mx-auto px-4 py-5 md:px-7 md:py-7">
         <PageHeader
           title="Payments & Reminders"
           subtitle="Multi-type billing — unit rent, room rent, and parking fees in one ledger."
         />
 
-        <div className="grid grid-cols-[1.85fr_1fr] gap-4 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.85fr_1fr] gap-4 items-start">
           {/* Ledger */}
           <Card className="overflow-hidden">
             <div className="px-5 py-4 border-b flex justify-between items-center">
@@ -58,28 +58,44 @@ export default function PaymentsPage() {
               </span>
               <span className="text-xs text-muted-foreground">{PAYMENTS.length} charges · {rm(totalAmount)}</span>
             </div>
-            <div className="grid grid-cols-[2fr_1.1fr_1fr_1fr] gap-2 px-5 py-3 border-b text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
+            {/* Desktop table header */}
+            <div className="hidden sm:grid grid-cols-[2fr_1.1fr_1fr_1fr] gap-2 px-5 py-3 border-b text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
               <span>Tenant</span><span>Type</span><span>Due</span><span className="text-right">Amount</span>
             </div>
             {enriched.map(p => (
-              <div
-                key={p.id}
-                className="grid grid-cols-[2fr_1.1fr_1fr_1fr] gap-2 px-5 py-3 border-b last:border-0 items-center hover:bg-muted/30 transition-colors"
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
+              <div key={p.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                {/* Mobile row */}
+                <div className="sm:hidden flex items-center gap-3 px-4 py-3.5">
                   {p.tenant && <Avatar name={p.tenant.name} color={p.tenant.color} size="sm" />}
-                  <div className="min-w-0">
-                    <div className="font-semibold text-sm truncate">{p.tenant?.name.split(' ')[0] || '—'}</div>
-                    <div className="text-xs text-muted-foreground truncate">{p.property?.name || '—'}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-sm truncate">{p.tenant?.name.split(' ')[0] || '—'}</span>
+                      <PaymentStatusBadge status={p.status} />
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{p.property?.name || '—'}</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <RentalTypeBadge type={p.rental_type} />
+                      <span className="text-xs font-bold">{rm(p.amount)}</span>
+                    </div>
                   </div>
                 </div>
-                <div><RentalTypeBadge type={p.rental_type} /></div>
-                <div className="text-sm text-muted-foreground">
-                  {new Date(p.due_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' })}
-                </div>
-                <div className="flex items-center justify-end gap-2">
-                  <PaymentStatusBadge status={p.status} />
-                  <span className="font-bold text-sm text-right min-w-[60px]">{rm(p.amount)}</span>
+                {/* Desktop row */}
+                <div className="hidden sm:grid grid-cols-[2fr_1.1fr_1fr_1fr] gap-2 px-5 py-3 items-center">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {p.tenant && <Avatar name={p.tenant.name} color={p.tenant.color} size="sm" />}
+                    <div className="min-w-0">
+                      <div className="font-semibold text-sm truncate">{p.tenant?.name.split(' ')[0] || '—'}</div>
+                      <div className="text-xs text-muted-foreground truncate">{p.property?.name || '—'}</div>
+                    </div>
+                  </div>
+                  <div><RentalTypeBadge type={p.rental_type} /></div>
+                  <div className="text-sm text-muted-foreground">
+                    {new Date(p.due_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' })}
+                  </div>
+                  <div className="flex items-center justify-end gap-2">
+                    <PaymentStatusBadge status={p.status} />
+                    <span className="font-bold text-sm text-right min-w-[60px]">{rm(p.amount)}</span>
+                  </div>
                 </div>
               </div>
             ))}

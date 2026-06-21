@@ -47,7 +47,7 @@ export default function MaintenancePage() {
 
   return (
     <main className="flex-1 overflow-y-auto">
-      <div className="max-w-[1320px] mx-auto px-7 py-7">
+      <div className="max-w-[1320px] mx-auto px-4 py-5 md:px-7 md:py-7">
         <PageHeader
           title="Maintenance"
           subtitle="Ticket board — linked to property, room or parking."
@@ -61,7 +61,7 @@ export default function MaintenancePage() {
         {loading ? (
           <div className="py-20 text-center text-muted-foreground text-sm">Loading…</div>
         ) : (
-          <div className="grid grid-cols-3 gap-4 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
             {COLUMNS.map(col => {
               const colTickets = getTickets(col.status)
               return (

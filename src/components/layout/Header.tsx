@@ -12,9 +12,9 @@ interface HeaderProps {
 
 export function Header({ title, subtitle, action }: HeaderProps) {
   return (
-    <header className="flex-shrink-0 h-[62px] border-b border-border bg-card flex items-center gap-4 px-6">
-      {/* Search */}
-      <div className="relative max-w-[380px] flex-1">
+    <header className="flex-shrink-0 h-[62px] border-b border-border bg-card flex items-center gap-4 px-4 md:px-6">
+      {/* Search — hidden on mobile */}
+      <div className="relative max-w-[380px] flex-1 hidden sm:block">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           placeholder="Search properties, tenants, payments…"
@@ -25,7 +25,7 @@ export function Header({ title, subtitle, action }: HeaderProps) {
       <div className="flex-1" />
 
       {/* Notifications */}
-      <Button variant="outline" size="icon" className="h-9 w-9 relative">
+      <Button variant="outline" size="icon" className="h-9 w-9 relative min-w-[36px]">
         <Bell className="w-4 h-4" />
         <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-red-500" />
       </Button>
@@ -35,12 +35,12 @@ export function Header({ title, subtitle, action }: HeaderProps) {
 
 export function PageHeader({ title, subtitle, action }: HeaderProps) {
   return (
-    <div className="flex items-end justify-between gap-4 mb-6">
+    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-6">
       <div>
-        <h1 className="text-2xl font-extrabold tracking-tight">{title}</h1>
+        <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight">{title}</h1>
         {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
       </div>
-      {action}
+      {action && <div className="flex-shrink-0">{action}</div>}
     </div>
   )
 }

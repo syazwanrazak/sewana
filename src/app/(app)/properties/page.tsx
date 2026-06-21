@@ -38,7 +38,7 @@ export default function PropertiesPage() {
 
   return (
     <main className="flex-1 overflow-y-auto">
-      <div className="max-w-[1320px] mx-auto px-7 py-7">
+      <div className="max-w-[1320px] mx-auto px-4 py-5 md:px-7 md:py-7">
         <PageHeader
           title="Properties"
           subtitle={loading ? 'Loading…' : `${properties.length} properties · ${totalSubUnits} sub-units · ${overallOcc}% occupied`}
@@ -52,7 +52,7 @@ export default function PropertiesPage() {
         {loading ? (
           <div className="py-20 text-center text-muted-foreground text-sm">Loading…</div>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(370px,1fr))] gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
             {properties.map((p) => {
               const rev = propertyRevenue(p)
               const occ = propertyOccupancy(p)

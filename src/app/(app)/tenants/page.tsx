@@ -94,7 +94,7 @@ export default function TenantsPage() {
 
   return (
     <main className="flex-1 overflow-y-auto">
-      <div className="max-w-[1320px] mx-auto px-7 py-7">
+      <div className="max-w-[1320px] mx-auto px-4 py-5 md:px-7 md:py-7">
         <PageHeader
           title="Tenants"
           subtitle="Manage tenancies across all rental types."
@@ -124,44 +124,67 @@ export default function TenantsPage() {
 
         {/* Table */}
         <Card className="overflow-hidden">
-          <div className="grid grid-cols-[2.2fr_1.8fr_1.3fr_1fr_1fr] gap-3 px-5 py-3 border-b text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
-            <span>Tenant</span>
-            <span>Assignment</span>
-            <span>Type</span>
-            <span>Rent</span>
-            <span>Status</span>
-          </div>
-
           {loading ? (
             <div className="py-16 text-center text-muted-foreground text-sm">Loading…</div>
+          ) : filtered.length === 0 ? (
+            <div className="py-16 text-center text-muted-foreground text-sm">
+              {tenants.length === 0 ? 'No tenants yet. Click "+ Add Tenant" to get started.' : 'No tenants for this type.'}
+            </div>
           ) : (
             <>
-              {filtered.map(t => (
-                <div
-                  key={t.id}
-                  className="grid grid-cols-[2.2fr_1.8fr_1.3fr_1fr_1fr] gap-3 px-5 py-3.5 border-b last:border-0 items-center hover:bg-muted/30 transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
+              {/* Mobile card list */}
+              <div className="divide-y md:hidden">
+                {filtered.map(t => (
+                  <div key={t.id} className="flex items-center gap-3 px-4 py-4">
                     <Avatar name={t.name} color={t.color} size="md" />
-                    <div className="min-w-0">
-                      <div className="font-semibold text-[13.5px] truncate">{t.name}</div>
-                      <div className="text-xs text-muted-foreground">Since {t.since}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="font-semibold text-sm truncate">{t.name}</div>
+                        <PaymentStatusBadge status={t.status} />
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate mt-0.5">
+                        {t.property} · {t.sub}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <RentalTypeBadge type={t.type} />
+                        <span className="text-xs font-bold text-primary">{t.rent ? rm(t.rent) : '—'}/mo</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="min-w-0">
-                    <div className="font-semibold text-sm">{t.property}</div>
-                    <div className="text-xs text-muted-foreground">{t.sub}</div>
+                ))}
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden md:block">
+                <div className="grid grid-cols-[2.2fr_1.8fr_1.3fr_1fr_1fr] gap-3 px-5 py-3 border-b text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
+                  <span>Tenant</span>
+                  <span>Assignment</span>
+                  <span>Type</span>
+                  <span>Rent</span>
+                  <span>Status</span>
+                </div>
+                {filtered.map(t => (
+                  <div
+                    key={t.id}
+                    className="grid grid-cols-[2.2fr_1.8fr_1.3fr_1fr_1fr] gap-3 px-5 py-3.5 border-b last:border-0 items-center hover:bg-muted/30 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Avatar name={t.name} color={t.color} size="md" />
+                      <div className="min-w-0">
+                        <div className="font-semibold text-[13.5px] truncate">{t.name}</div>
+                        <div className="text-xs text-muted-foreground">Since {t.since}</div>
+                      </div>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-sm">{t.property}</div>
+                      <div className="text-xs text-muted-foreground">{t.sub}</div>
+                    </div>
+                    <div><RentalTypeBadge type={t.type} /></div>
+                    <div className="font-bold text-[13.5px]">{t.rent ? rm(t.rent) : '—'}</div>
+                    <div><PaymentStatusBadge status={t.status} /></div>
                   </div>
-                  <div><RentalTypeBadge type={t.type} /></div>
-                  <div className="font-bold text-[13.5px]">{t.rent ? rm(t.rent) : '—'}</div>
-                  <div><PaymentStatusBadge status={t.status} /></div>
-                </div>
-              ))}
-              {filtered.length === 0 && (
-                <div className="py-16 text-center text-muted-foreground text-sm">
-                  {tenants.length === 0 ? 'No tenants yet. Click "+ Add Tenant" to get started.' : 'No tenants for this type.'}
-                </div>
-              )}
+                ))}
+              </div>
             </>
           )}
         </Card>

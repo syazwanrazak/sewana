@@ -69,7 +69,7 @@ export function AddPropertyModal({ open, onClose, onCreated }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="w-[460px]">
+      <DialogContent className="sm:max-w-[460px]">
         <DialogHeader>
           <DialogTitle>Add Property</DialogTitle>
           <p className="text-sm text-muted-foreground">Create a property, then add rooms &amp; parking.</p>
