@@ -10,6 +10,7 @@ import { PriorityBadge } from '@/components/shared/Badge'
 import { AddUnitButton } from '@/components/properties/AddUnitButton'
 import { UnitActions } from '@/components/properties/UnitActions'
 import { UploadDocumentButton } from '@/components/properties/UploadDocumentButton'
+import { DocumentActions } from '@/components/properties/DocumentActions'
 import { UtilityTracker } from '@/components/properties/UtilityTracker'
 import { PropertyActions } from '@/components/properties/PropertyActions'
 
@@ -237,21 +238,24 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                 {(docs ?? []).length > 0 ? (
                   <div className="flex flex-col gap-2">
                     {(docs ?? []).map((d: any) => (
-                      <a
-                        key={d.id}
-                        href={d.file_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 px-4 py-3 border rounded-xl hover:border-primary transition-colors cursor-pointer"
-                      >
-                        <div className={`w-9 h-9 rounded-lg text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${DocTypeColors[d.file_type] || 'bg-slate-500'}`}>
-                          {d.file_type}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-sm">{d.name}</div>
-                          <div className="text-xs text-muted-foreground">{d.category} · {d.file_size} · {formatDate(d.created_at)}</div>
-                        </div>
-                      </a>
+                      <div key={d.id} className="flex items-center gap-3 px-4 py-3 border rounded-xl hover:border-primary transition-colors">
+                        {/* Clicking the icon/name opens the file */}
+                        <a
+                          href={d.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 flex-1 min-w-0"
+                        >
+                          <div className={`w-9 h-9 rounded-lg text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${DocTypeColors[d.file_type] || 'bg-slate-500'}`}>
+                            {d.file_type}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-semibold text-sm truncate">{d.name}</div>
+                            <div className="text-xs text-muted-foreground">{d.category} · {d.file_size} · {formatDate(d.created_at)}</div>
+                          </div>
+                        </a>
+                        <DocumentActions doc={d} />
+                      </div>
                     ))}
                   </div>
                 ) : (

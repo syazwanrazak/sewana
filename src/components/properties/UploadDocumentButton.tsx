@@ -2,10 +2,9 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Upload } from 'lucide-react'
+import { Upload, FileText, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { toast } from 'sonner'
@@ -96,15 +95,41 @@ export function UploadDocumentButton({ propertyId }: Props) {
           <form onSubmit={handleUpload} className="flex flex-col gap-4 mt-1">
             <div>
               <Label className="mb-1.5 block">File <span className="text-red-500">*</span></Label>
-              <Input
+              {/* Hidden native input */}
+              <input
                 ref={fileRef}
                 type="file"
                 accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp"
                 onChange={e => setFile(e.target.files?.[0] ?? null)}
-                className="cursor-pointer"
+                className="sr-only"
               />
-              {file && (
-                <p className="text-xs text-muted-foreground mt-1">{file.name} — {(file.size / 1024).toFixed(0)} KB</p>
+              {/* Custom file picker trigger */}
+              {file ? (
+                <div className="flex items-center gap-2 border rounded-lg px-3 py-2.5 bg-muted/40">
+                  <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <span className="flex-1 text-sm truncate">{file.name}</span>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {file.size >= 1048576
+                      ? `${(file.size / 1048576).toFixed(1)} MB`
+                      : `${Math.round(file.size / 1024)} KB`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { setFile(null); if (fileRef.current) fileRef.current.value = '' }}
+                    className="text-muted-foreground hover:text-foreground flex-shrink-0"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className="w-full flex items-center gap-2 border border-dashed rounded-lg px-3 py-3 text-sm text-muted-foreground hover:border-primary hover:text-foreground transition-colors"
+                >
+                  <Upload className="w-4 h-4 flex-shrink-0" />
+                  Click to choose a file…
+                </button>
               )}
             </div>
             <div>
