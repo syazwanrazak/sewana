@@ -8,6 +8,8 @@ import { propertyRevenue, propertyOccupancy } from '@/lib/seed'
 import { rm, formatDate } from '@/lib/utils'
 import { PriorityBadge } from '@/components/shared/Badge'
 import { AddUnitButton } from '@/components/properties/AddUnitButton'
+import { UnitActions } from '@/components/properties/UnitActions'
+import { UploadDocumentButton } from '@/components/properties/UploadDocumentButton'
 import { UtilityTracker } from '@/components/properties/UtilityTracker'
 import { PropertyActions } from '@/components/properties/PropertyActions'
 
@@ -163,6 +165,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                         {r.is_occupied ? 'Occupied' : 'Vacant'}
                       </span>
                       <div className="w-24 text-right font-bold text-sm">{rm(r.price)}/mo</div>
+                      <UnitActions unit={r} />
                     </div>
                   ))}
                   {rooms.length === 0 && fullUnits.length === 0 && (
@@ -181,11 +184,14 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
                     {parking.map((pk: any) => (
                       <div key={pk.id} className="border rounded-xl p-4 hover:border-primary transition-colors">
-                        <div className="flex justify-between items-center mb-2.5">
+                        <div className="flex justify-between items-start mb-2.5">
                           <span className="font-bold text-[15px]">{pk.name}</span>
-                          <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${pk.is_occupied ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
-                            {pk.is_occupied ? 'Assigned' : 'Available'}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${pk.is_occupied ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
+                              {pk.is_occupied ? 'Assigned' : 'Available'}
+                            </span>
+                            <UnitActions unit={pk} />
+                          </div>
                         </div>
                         <div className="font-bold text-sm text-primary">{pk.price ? rm(pk.price) + '/mo' : 'Included'}</div>
                       </div>
@@ -224,22 +230,32 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
 
               {/* Documents */}
               <TabsContent value="documents">
+                <div className="flex justify-between items-center mb-4">
+                  <p className="text-sm text-muted-foreground">{(docs ?? []).length} document{(docs ?? []).length !== 1 ? 's' : ''}</p>
+                  <UploadDocumentButton propertyId={property.id} />
+                </div>
                 {(docs ?? []).length > 0 ? (
                   <div className="flex flex-col gap-2">
                     {(docs ?? []).map((d: any) => (
-                      <div key={d.id} className="flex items-center gap-3 px-4 py-3 border rounded-xl hover:border-primary transition-colors cursor-pointer">
+                      <a
+                        key={d.id}
+                        href={d.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 px-4 py-3 border rounded-xl hover:border-primary transition-colors cursor-pointer"
+                      >
                         <div className={`w-9 h-9 rounded-lg text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${DocTypeColors[d.file_type] || 'bg-slate-500'}`}>
                           {d.file_type}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-semibold text-sm">{d.name}</div>
-                          <div className="text-xs text-muted-foreground">{d.file_size} · {formatDate(d.created_at)}</div>
+                          <div className="text-xs text-muted-foreground">{d.category} · {d.file_size} · {formatDate(d.created_at)}</div>
                         </div>
-                      </div>
+                      </a>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-center py-12 text-muted-foreground text-sm">No documents uploaded.</p>
+                  <p className="text-center py-12 text-muted-foreground text-sm">No documents yet. Upload one above.</p>
                 )}
               </TabsContent>
             </div>

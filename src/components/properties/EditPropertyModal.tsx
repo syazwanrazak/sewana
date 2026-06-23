@@ -94,15 +94,31 @@ export function EditPropertyModal({ open, onClose, onUpdated, property }: Props)
     if (form.kind === 'Full Unit' && form.monthlyRent) {
       const existingFull = property.units?.find(u => u.unit_type === 'full')
       if (existingFull) {
-        await supabase.from('units').update({ price: parseFloat(form.monthlyRent) }).eq('id', existingFull.id)
+        const { error: unitErr } = await supabase.from('units')
+          .update({ price: parseFloat(form.monthlyRent) })
+          .eq('id', existingFull.id)
+        if (unitErr) {
+          toast.error('Property saved but rent update failed: ' + unitErr.message)
+          setLoading(false)
+          onClose()
+          onUpdated()
+          return
+        }
       } else {
-        await supabase.from('units').insert({
+        const { error: unitErr } = await supabase.from('units').insert({
           property_id: property.id,
           name: 'Full Unit',
           unit_type: 'full',
           price: parseFloat(form.monthlyRent),
           is_occupied: false,
         })
+        if (unitErr) {
+          toast.error('Property saved but unit creation failed: ' + unitErr.message)
+          setLoading(false)
+          onClose()
+          onUpdated()
+          return
+        }
       }
     }
 

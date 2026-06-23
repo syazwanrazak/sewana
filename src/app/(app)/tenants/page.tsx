@@ -205,7 +205,7 @@ export default function TenantsPage() {
               {/* Mobile card list */}
               <div className="divide-y md:hidden">
                 {filtered.map(t => (
-                  <div key={t.id} className="flex items-center gap-3 px-4 py-4">
+                  <div key={t.id} className="flex items-center gap-3 px-4 py-4 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setEditingTenant(t)}>
                     <Avatar name={t.name} color={t.color} size="md" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
@@ -242,7 +242,8 @@ export default function TenantsPage() {
                   return (
                     <div
                       key={t.id}
-                      className="grid grid-cols-[2fr_1.6fr_1.1fr_0.9fr_0.9fr_1.1fr_36px] gap-3 px-5 py-3.5 border-b last:border-0 items-center hover:bg-muted/30 transition-colors"
+                      className="grid grid-cols-[2fr_1.6fr_1.1fr_0.9fr_0.9fr_1.1fr_36px] gap-3 px-5 py-3.5 border-b last:border-0 items-center hover:bg-muted/30 transition-colors cursor-pointer"
+                      onClick={() => setEditingTenant(t)}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <Avatar name={t.name} color={t.color} size="md" />
