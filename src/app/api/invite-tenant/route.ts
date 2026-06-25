@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
           body: JSON.stringify({
             type: 'magiclink',
             email,
-            redirect_to: `${appUrl}/portal`,
+            redirect_to: `${appUrl}/set-password`,
           }),
         })
         linkBody = await magicRes.json()

@@ -20,11 +20,11 @@ export default function SetPasswordPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // The invite link arrives with tokens in the URL hash
     const hash = window.location.hash.slice(1)
     const params = new URLSearchParams(hash)
     const accessToken  = params.get('access_token')
     const refreshToken = params.get('refresh_token') ?? ''
+    const type         = params.get('type')
 
     if (!accessToken) {
       setError('Invalid or expired invite link. Please ask your landlord to resend the invite.')
@@ -33,9 +33,16 @@ export default function SetPasswordPage() {
 
     const supabase = createClient()
     supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
-      .then(() => setReady(true))
+      .then(() => {
+        // Magic links don't need a password — go straight to portal
+        if (type === 'magiclink') {
+          router.replace('/portal')
+        } else {
+          setReady(true)
+        }
+      })
       .catch(() => setError('Session could not be loaded. The link may have expired.'))
-  }, [])
+  }, [router])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
