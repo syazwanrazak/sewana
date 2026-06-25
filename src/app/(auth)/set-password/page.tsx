@@ -41,16 +41,28 @@ export default function SetPasswordPage() {
 
     setLoading(true)
     const supabase = createClient()
+
+    // Get the tenant's email before updating password
+    const { data: { user } } = await supabase.auth.getUser()
+    const email = user?.email
+
     const { error: updateErr } = await supabase.auth.updateUser({ password })
     if (updateErr) { toast.error(updateErr.message); setLoading(false); return }
 
-    // Refresh session to get a new JWT that includes the latest app_metadata (role: tenant).
-    // Without this, the old JWT in the cookie may not have the role set, causing the
-    // middleware to treat the user as admin and redirect to /dashboard.
-    await supabase.auth.refreshSession()
+    // Sign out the invite session (which may have a stale JWT without the tenant role),
+    // then sign back in fresh — this guarantees a new JWT with the correct app_metadata.
+    await supabase.auth.signOut()
+
+    if (email) {
+      const { error: loginErr } = await supabase.auth.signInWithPassword({ email, password })
+      if (loginErr) {
+        // Password was set — just send them to login page
+        window.location.href = '/portal/login?pw=set'
+        return
+      }
+    }
 
     toast.success('Password set! Taking you to your portal…')
-    // Full page load (not client-side nav) ensures the server reads the fresh session cookie.
     window.location.href = '/portal'
   }
 
