@@ -221,24 +221,31 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
   if (inviteLink) {
     return (
       <Dialog open onOpenChange={() => { setInviteLink(''); onClose() }}>
-        <DialogContent className="sm:max-w-[420px]">
+        <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle>Tenant Added!</DialogTitle>
-            <p className="text-sm text-muted-foreground">Share this portal invite link with your tenant via WhatsApp or any messaging app.</p>
+            <DialogTitle>Tenant Added</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Copy the portal link below and send it to your tenant via WhatsApp. They'll use it to set up their password and access the portal.
+            </p>
           </DialogHeader>
-          <div className="flex flex-col gap-3 mt-2">
-            <div className="flex items-center gap-2 border rounded-lg px-3 py-2.5 bg-muted/40">
-              <span className="flex-1 text-xs text-muted-foreground truncate">{inviteLink}</span>
-              <button
-                onClick={copyLink}
-                className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 flex-shrink-0"
-              >
-                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? 'Copied!' : 'Copy'}
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground">Link expires in 24 hours. You can regenerate it anytime from the tenant menu.</p>
-            <Button onClick={() => { setInviteLink(''); onClose() }} className="w-full">Done</Button>
+          <div className="flex flex-col gap-3 mt-1">
+            <button
+              onClick={copyLink}
+              className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all border-2 ${
+                copied
+                  ? 'bg-green-50 border-green-400 text-green-700'
+                  : 'bg-primary/5 border-primary text-primary hover:bg-primary/10'
+              }`}
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copied ? 'Link Copied!' : 'Copy Portal Link'}
+            </button>
+            <p className="text-xs text-center text-muted-foreground">
+              Link expires in 24 hours · Regenerate anytime from the tenant menu
+            </p>
+            <Button variant="outline" onClick={() => { setInviteLink(''); onClose() }} className="w-full">
+              Done
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
