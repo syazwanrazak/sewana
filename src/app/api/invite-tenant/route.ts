@@ -29,7 +29,8 @@ export async function POST(request: NextRequest) {
   })
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 })
+    console.error('[invite-tenant] inviteUserByEmail error:', JSON.stringify(error))
+    return NextResponse.json({ error: error.message ?? error.status ?? JSON.stringify(error) }, { status: 400 })
   }
 
   // Set app_metadata (server-only, tenant cannot modify this)
