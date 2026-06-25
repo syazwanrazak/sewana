@@ -151,7 +151,8 @@ export default function TenantsPage() {
   }
 
   function openWhatsApp(t: TenantRow) {
-    const phone = (t.phone ?? '').replace(/\D/g, '')
+    const raw = (t.phone ?? '').replace(/\D/g, '')
+    const phone = raw.startsWith('60') ? raw : raw.startsWith('0') ? '6' + raw : '60' + raw
     if (!phone) { toast.error(`No phone number for ${t.name}.`); return }
     const totalRent = (t.rent ?? 0) + (t.parkingRent ?? 0)
     const msg = `Hi ${t.name.split(' ')[0]}, this is a friendly reminder that your rent of RM ${totalRent} is due. Please make payment via DuitNow or bank transfer and submit your proof via the Sewana tenant portal. Thank you!`
