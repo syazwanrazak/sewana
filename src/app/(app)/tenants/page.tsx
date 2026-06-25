@@ -16,7 +16,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
-import { MoreHorizontal, Pencil, UserX, RefreshCw, MessageCircle } from 'lucide-react'
+import { MoreHorizontal, Pencil, UserX, RefreshCw, MessageCircle, Link } from 'lucide-react'
 import { RenewContractModal } from '@/components/tenants/RenewContractModal'
 import type { RentalType, PaymentStatus, Property } from '@/types'
 
@@ -162,6 +162,22 @@ export default function TenantsPage() {
     load()
   }
 
+  async function copyInviteLink(t: TenantRow) {
+    if (!t.email) { toast.error(`No email on file for ${t.name}.`); return }
+    const res = await fetch('/api/invite-tenant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: t.email, tenantId: t.id, name: t.name }),
+    })
+    const json = await res.json()
+    if (json.inviteLink) {
+      await navigator.clipboard.writeText(json.inviteLink)
+      toast.success(`Invite link copied! Share with ${t.name} via WhatsApp.`)
+    } else {
+      toast.error(json.error ?? 'Failed to generate link.')
+    }
+  }
+
   function openWhatsApp(t: TenantRow) {
     const raw = (t.phone ?? '').replace(/\D/g, '')
     const phone = raw.startsWith('60') ? raw : raw.startsWith('0') ? '6' + raw : '60' + raw
@@ -189,6 +205,9 @@ export default function TenantsPage() {
               <RefreshCw className="w-3.5 h-3.5" /> Renew Contract
             </DropdownMenuItem>
           )}
+          <DropdownMenuItem onClick={() => copyInviteLink(t)}>
+            <Link className="w-3.5 h-3.5" /> Copy Invite Link
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => openWhatsApp(t)}>
             <MessageCircle className="w-3.5 h-3.5" /> WhatsApp Reminder
           </DropdownMenuItem>

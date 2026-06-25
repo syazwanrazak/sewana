@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Upload, FileText, X } from 'lucide-react'
+import { Upload, FileText, X, Copy, Check } from 'lucide-react'
 import { cn, rm, pickColor } from '@/lib/utils'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -45,6 +45,8 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
     startDate: today(), endDate: nextYear(),
   })
   const [loading, setLoading] = useState(false)
+  const [inviteLink, setInviteLink] = useState('')
+  const [copied, setCopied] = useState(false)
   const [docQueue, setDocQueue] = useState<QueuedDoc[]>([])
   const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [pendingCategory, setPendingCategory] = useState('')
@@ -182,7 +184,7 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
 
     toast.success(`Tenant "${form.name}" added!`)
 
-    // Invite tenant to portal if email provided
+    // Generate portal invite link if email provided
     if (form.email.trim()) {
       try {
         const res = await fetch('/api/invite-tenant', {
@@ -191,19 +193,10 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
           body: JSON.stringify({ email: form.email.trim(), tenantId: tenant.id, name: form.name.trim() }),
         })
         const json = await res.json()
-        if (json.skipped) {
-          toast.warning('Tenant added but portal invite skipped — SUPABASE_SERVICE_ROLE_KEY not configured.')
+        if (json.inviteLink) {
+          setInviteLink(json.inviteLink)
         } else if (json.error) {
-          toast.error('Invite failed: ' + json.error)
-        } else if (json.inviteLink) {
-          // Email couldn't be sent (e.g. Resend domain not verified) — show link for manual sharing
-          await navigator.clipboard.writeText(json.inviteLink).catch(() => {})
-          toast.warning(
-            `Email couldn't be sent — invite link copied to clipboard! Share it with ${form.email.trim()} via WhatsApp or manually.`,
-            { duration: 8000 }
-          )
-        } else {
-          toast.success(`Invite email sent to ${form.email.trim()}`)
+          toast.error('Could not generate invite link: ' + json.error)
         }
       } catch {
         toast.error('Invite request failed — check server logs.')
@@ -216,6 +209,40 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
     setLoading(false)
     onClose()
     onCreated()
+  }
+
+  async function copyLink() {
+    await navigator.clipboard.writeText(inviteLink)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  // Show invite link dialog after tenant is created
+  if (inviteLink) {
+    return (
+      <Dialog open onOpenChange={() => { setInviteLink(''); onClose() }}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Tenant Added!</DialogTitle>
+            <p className="text-sm text-muted-foreground">Share this portal invite link with your tenant via WhatsApp or any messaging app.</p>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 mt-2">
+            <div className="flex items-center gap-2 border rounded-lg px-3 py-2.5 bg-muted/40">
+              <span className="flex-1 text-xs text-muted-foreground truncate">{inviteLink}</span>
+              <button
+                onClick={copyLink}
+                className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 flex-shrink-0"
+              >
+                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">Link expires in 24 hours. You can regenerate it anytime from the tenant menu.</p>
+            <Button onClick={() => { setInviteLink(''); onClose() }} className="w-full">Done</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    )
   }
 
   return (
