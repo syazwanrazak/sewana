@@ -80,6 +80,8 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                   {isExpired && <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-600">Contract Expired</span>}
                 </div>
                 <div className="text-sm text-muted-foreground mt-1">
+                  {[property.block && `Block ${property.block}`, property.level && `Level ${property.level}`, property.unit_no && `Unit ${property.unit_no}`].filter(Boolean).join(' · ')}
+                  {[property.block, property.level, property.unit_no].some(Boolean) && ' · '}
                   {property.address}
                   {property.owner?.name ? ` · Owner: ${property.owner.name}` : ''}
                 </div>

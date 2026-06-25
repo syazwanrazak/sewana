@@ -23,6 +23,9 @@ export function EditPropertyModal({ open, onClose, onUpdated, property }: Props)
   const [form, setForm] = useState({
     name: '',
     address: '',
+    block: '',
+    level: '',
+    unitNo: '',
     kind: '',
     contractExpiry: '',
     ownerName: '',
@@ -37,6 +40,9 @@ export function EditPropertyModal({ open, onClose, onUpdated, property }: Props)
       setForm({
         name: property.name,
         address: property.address,
+        block: property.block ?? '',
+        level: property.level ?? '',
+        unitNo: property.unit_no ?? '',
         kind: property.kind,
         contractExpiry: property.contract_expiry?.slice(0, 10) ?? '',
         ownerName: property.owner?.name ?? '',
@@ -79,6 +85,9 @@ export function EditPropertyModal({ open, onClose, onUpdated, property }: Props)
     const { error } = await supabase.from('properties').update({
       name: form.name.trim(),
       address: form.address.trim(),
+      block: form.block.trim() || null,
+      level: form.level.trim() || null,
+      unit_no: form.unitNo.trim() || null,
       kind: form.kind,
       contract_expiry: form.contractExpiry || null,
       owner_id,
@@ -144,6 +153,20 @@ export function EditPropertyModal({ open, onClose, onUpdated, property }: Props)
           <div>
             <Label className="mb-1.5 block">Address <span className="text-red-500">*</span></Label>
             <Input placeholder="Street, city" value={form.address} onChange={set('address')} />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <Label className="mb-1.5 block">Block</Label>
+              <Input placeholder="e.g. A" value={form.block} onChange={set('block')} />
+            </div>
+            <div>
+              <Label className="mb-1.5 block">Level</Label>
+              <Input placeholder="e.g. 5" value={form.level} onChange={set('level')} />
+            </div>
+            <div>
+              <Label className="mb-1.5 block">Unit No.</Label>
+              <Input placeholder="e.g. 12-3" value={form.unitNo} onChange={set('unitNo')} />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

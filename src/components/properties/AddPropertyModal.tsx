@@ -19,7 +19,7 @@ interface Props {
 const PROPERTY_KINDS = ['Apartment Block', 'Full Unit', 'Room Rental', 'Mixed Use']
 
 export function AddPropertyModal({ open, onClose, onCreated }: Props) {
-  const [form, setForm] = useState({ name: '', address: '', kind: '', ownerName: '', ownerPhone: '', monthlyRent: '' })
+  const [form, setForm] = useState({ name: '', address: '', block: '', level: '', unitNo: '', kind: '', ownerName: '', ownerPhone: '', monthlyRent: '' })
   const [loading, setLoading] = useState(false)
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -55,6 +55,9 @@ export function AddPropertyModal({ open, onClose, onCreated }: Props) {
     const { data: property, error } = await supabase.from('properties').insert({
       name: form.name.trim(),
       address: form.address.trim(),
+      block: form.block.trim() || null,
+      level: form.level.trim() || null,
+      unit_no: form.unitNo.trim() || null,
       kind: form.kind,
       color: pickColor(form.name),
       owner_id,
@@ -78,7 +81,7 @@ export function AddPropertyModal({ open, onClose, onCreated }: Props) {
     }
 
     toast.success(`"${form.name}" added!`)
-    setForm({ name: '', address: '', kind: '', ownerName: '', ownerPhone: '', monthlyRent: '' })
+    setForm({ name: '', address: '', block: '', level: '', unitNo: '', kind: '', ownerName: '', ownerPhone: '', monthlyRent: '' })
     setLoading(false)
     onClose()
     onCreated()
@@ -100,6 +103,20 @@ export function AddPropertyModal({ open, onClose, onCreated }: Props) {
           <div>
             <Label className="mb-1.5 block">Address <span className="text-red-500">*</span></Label>
             <Input placeholder="Street, city" value={form.address} onChange={set('address')} />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <Label className="mb-1.5 block">Block</Label>
+              <Input placeholder="e.g. A" value={form.block} onChange={set('block')} />
+            </div>
+            <div>
+              <Label className="mb-1.5 block">Level</Label>
+              <Input placeholder="e.g. 5" value={form.level} onChange={set('level')} />
+            </div>
+            <div>
+              <Label className="mb-1.5 block">Unit No.</Label>
+              <Input placeholder="e.g. 12-3" value={form.unitNo} onChange={set('unitNo')} />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

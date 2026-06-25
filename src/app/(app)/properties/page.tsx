@@ -74,6 +74,11 @@ export default function PropertiesPage() {
                         </div>
                         <div className="min-w-0">
                           <div className="font-bold text-[15px] truncate">{p.name}</div>
+                          {[p.block && `Block ${p.block}`, p.level && `Level ${p.level}`, p.unit_no && `Unit ${p.unit_no}`].filter(Boolean).length > 0 && (
+                            <div className="text-xs font-medium text-foreground/70 truncate">
+                              {[p.block && `Block ${p.block}`, p.level && `Level ${p.level}`, p.unit_no && `Unit ${p.unit_no}`].filter(Boolean).join(' · ')}
+                            </div>
+                          )}
                           <div className="text-xs text-muted-foreground mt-0.5 truncate">{p.address}</div>
                         </div>
                       </div>

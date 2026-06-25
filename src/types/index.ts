@@ -19,6 +19,9 @@ export interface Property {
   owner_id?: string
   name: string
   address: string
+  block?: string
+  level?: string
+  unit_no?: string
   kind: string // 'Apartment Block', 'Full Unit', 'Mixed Use', 'Room Rental'
   contract_expiry?: string
   color: string
