@@ -180,16 +180,28 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
       }
     }
 
+    toast.success(`Tenant "${form.name}" added!`)
+
     // Invite tenant to portal if email provided
     if (form.email.trim()) {
-      fetch('/api/invite-tenant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: form.email.trim(), tenantId: tenant.id, name: form.name.trim() }),
-      }).catch(() => {})
+      try {
+        const res = await fetch('/api/invite-tenant', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: form.email.trim(), tenantId: tenant.id, name: form.name.trim() }),
+        })
+        const json = await res.json()
+        if (json.skipped) {
+          toast.warning('Tenant added but portal invite skipped — SUPABASE_SERVICE_ROLE_KEY not configured.')
+        } else if (json.error) {
+          toast.error('Invite failed: ' + json.error)
+        } else {
+          toast.success(`Invite email sent to ${form.email.trim()}`)
+        }
+      } catch {
+        toast.error('Invite request failed — check server logs.')
+      }
     }
-
-    toast.success(`Tenant "${form.name}" added!${form.email.trim() ? ' Invite email sent.' : ''}`)
     setForm({ name: '', email: '', phone: '', propertyId: '', rentalType: 'room', unitId: '', parkingUnitId: '', startDate: today(), endDate: nextYear() })
     setDocQueue([])
     setPendingFile(null)
