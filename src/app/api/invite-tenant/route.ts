@@ -104,8 +104,8 @@ export async function POST(request: NextRequest) {
     })
 
     if (emailErr) {
-      console.error('[invite-tenant] Resend error:', emailErr)
-      return NextResponse.json({ error: 'Invite link created but email failed: ' + emailErr.message }, { status: 500 })
+      console.warn('[invite-tenant] Resend error (returning link for manual share):', emailErr.message)
+      return NextResponse.json({ success: true, inviteLink: inviteUrl, emailError: emailErr.message })
     }
 
     return NextResponse.json({ success: true })

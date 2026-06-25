@@ -195,6 +195,13 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
           toast.warning('Tenant added but portal invite skipped — SUPABASE_SERVICE_ROLE_KEY not configured.')
         } else if (json.error) {
           toast.error('Invite failed: ' + json.error)
+        } else if (json.inviteLink) {
+          // Email couldn't be sent (e.g. Resend domain not verified) — show link for manual sharing
+          await navigator.clipboard.writeText(json.inviteLink).catch(() => {})
+          toast.warning(
+            `Email couldn't be sent — invite link copied to clipboard! Share it with ${form.email.trim()} via WhatsApp or manually.`,
+            { duration: 8000 }
+          )
         } else {
           toast.success(`Invite email sent to ${form.email.trim()}`)
         }
