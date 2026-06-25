@@ -22,8 +22,12 @@ export async function POST(request: NextRequest) {
     'apikey': serviceKey,
   }
 
+  // NOTE: Supabase REST API returns user fields + link fields FLAT at the root.
+  // There is no nested { user: {...}, action_link: "..." } — it's all top-level.
+  // So userId = body.id, inviteUrl = body.action_link.
+
   try {
-    // Generate invite link without sending any email
+    // Try invite first (creates new user)
     const linkRes = await fetch(`${supabaseUrl}/auth/v1/admin/generate_link`, {
       method: 'POST',
       headers,
@@ -35,62 +39,60 @@ export async function POST(request: NextRequest) {
       }),
     })
 
-    let linkBody = await linkRes.json()
+    let body = await linkRes.json()
 
-    // If user already exists, fall back to a password-reset (recovery) link
     if (!linkRes.ok) {
-      const errMsg: string = linkBody.msg ?? linkBody.message ?? linkBody.error_description ?? ''
-      if (errMsg.toLowerCase().includes('already been registered') || errMsg.toLowerCase().includes('already registered')) {
-        // Look up the existing user to check their role before proceeding
-        const listRes = await fetch(
-          `${supabaseUrl}/auth/v1/admin/users?email=${encodeURIComponent(email)}`,
-          { headers }
-        )
-        const listBody = await listRes.json()
-        const existingUser = listBody?.users?.[0]
-        const existingRole = existingUser?.app_metadata?.role as string | undefined
+      const errMsg: string = body.msg ?? body.message ?? body.error_description ?? ''
+      const alreadyExists = errMsg.toLowerCase().includes('already been registered')
+        || errMsg.toLowerCase().includes('already registered')
 
-        // Block admin accounts — same email cannot be both admin and tenant
-        if (existingRole !== 'tenant') {
-          return NextResponse.json({
-            error: 'This email is already registered as an admin account. Use a different email for this tenant.',
-          }, { status: 409 })
-        }
-
-        const recoveryRes = await fetch(`${supabaseUrl}/auth/v1/admin/generate_link`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            type: 'recovery',
-            email,
-            redirect_to: `${appUrl}/set-password`,
-          }),
-        })
-        linkBody = await recoveryRes.json()
-        if (!recoveryRes.ok) {
-          return NextResponse.json({
-            error: linkBody.msg ?? linkBody.message ?? linkBody.error_description ?? JSON.stringify(linkBody),
-          }, { status: 400 })
-        }
-      } else {
-        return NextResponse.json({ error: errMsg || JSON.stringify(linkBody) }, { status: 400 })
+      if (!alreadyExists) {
+        return NextResponse.json({ error: errMsg || JSON.stringify(body) }, { status: 400 })
       }
+
+      // User already exists — generate a password-reset (recovery) link instead
+      const recoveryRes = await fetch(`${supabaseUrl}/auth/v1/admin/generate_link`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          type: 'recovery',
+          email,
+          redirect_to: `${appUrl}/set-password`,
+        }),
+      })
+      body = await recoveryRes.json()
+
+      if (!recoveryRes.ok) {
+        return NextResponse.json({
+          error: body.msg ?? body.message ?? body.error_description ?? JSON.stringify(body),
+        }, { status: 400 })
+      }
+
+      // Block admin accounts — flat response includes app_metadata at root
+      const existingRole = body.app_metadata?.role as string | undefined
+      if (existingRole !== 'tenant') {
+        return NextResponse.json({
+          error: 'This email is already registered as an admin account. Use a different email for this tenant.',
+        }, { status: 409 })
+      }
+
+      // Existing tenant — just return the recovery link (role already set)
+      return NextResponse.json({ success: true, inviteLink: body.action_link })
     }
 
-    // Handle both response shapes (newer Supabase wraps under .user, older may differ)
-    const userId    = linkBody.user?.id ?? linkBody.data?.user?.id
-    const inviteUrl = linkBody.action_link as string
+    // New user created — body is flat: body.id = userId, body.action_link = link
+    const userId    = body.id as string | undefined
+    const inviteUrl = body.action_link as string | undefined
 
     if (!inviteUrl) {
-      return NextResponse.json({ error: 'Failed to generate invite link' }, { status: 500 })
+      return NextResponse.json({ error: 'No invite link in Supabase response.' }, { status: 500 })
     }
-
     if (!userId) {
-      console.error('[invite-tenant] No userId in generate_link response:', JSON.stringify(linkBody))
-      return NextResponse.json({ error: 'Could not retrieve user ID — role not set. Please try again.' }, { status: 500 })
+      console.error('[invite-tenant] Unexpected response shape — keys:', Object.keys(body))
+      return NextResponse.json({ error: 'Could not read user ID from Supabase response.' }, { status: 500 })
     }
 
-    // Set app_metadata with tenant role (server-only, cannot be modified by client)
+    // Set tenant role in app_metadata (server-side only — client cannot modify this)
     const updateRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
       method: 'PUT',
       headers,
@@ -99,13 +101,14 @@ export async function POST(request: NextRequest) {
 
     if (!updateRes.ok) {
       const updateBody = await updateRes.json().catch(() => ({}))
-      console.error('[invite-tenant] app_metadata update failed:', updateRes.status, JSON.stringify(updateBody))
+      console.error('[invite-tenant] app_metadata update failed:', updateRes.status, updateBody)
       return NextResponse.json({
         error: 'Failed to assign tenant role: ' + (updateBody.msg ?? updateBody.message ?? `HTTP ${updateRes.status}`),
       }, { status: 500 })
     }
 
     return NextResponse.json({ success: true, inviteLink: inviteUrl })
+
   } catch (err) {
     console.error('[invite-tenant] threw:', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
