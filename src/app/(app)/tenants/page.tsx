@@ -45,6 +45,8 @@ interface TenantRow {
   contractEnd?: string
   parkingContractId?: string
   parkingUnitId?: string
+  parkingUnitName?: string
+  parkingRent?: number
 }
 
 export default function TenantsPage() {
@@ -111,6 +113,8 @@ export default function TenantsPage() {
         contractEnd: contract?.end_date,
         parkingContractId: parkingContract?.id,
         parkingUnitId: parkingContract?.unit?.id,
+        parkingUnitName: parkingContract?.unit?.name,
+        parkingRent: parkingContract?.monthly_rent ?? 0,
       }
     })
 
@@ -214,7 +218,9 @@ export default function TenantsPage() {
             <>
               {/* Mobile card list */}
               <div className="divide-y md:hidden">
-                {filtered.map(t => (
+                {filtered.map(t => {
+                  const totalRent = (t.rent ?? 0) + (t.parkingRent ?? 0)
+                  return (
                   <div key={t.id} className="flex items-center gap-3 px-4 py-4 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setEditingTenant(t)}>
                     <Avatar name={t.name} color={t.color} size="md" />
                     <div className="flex-1 min-w-0">
@@ -223,36 +229,38 @@ export default function TenantsPage() {
                         <PaymentStatusBadge status={t.status} />
                       </div>
                       <div className="text-xs text-muted-foreground truncate mt-0.5">
-                        {t.property} · {t.sub}
+                        {t.property} · {t.sub}{t.parkingUnitName ? ` · 🅿 ${t.parkingUnitName}` : ''}
                       </div>
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                         <RentalTypeBadge type={t.type} />
-                        <span className="text-xs font-bold text-primary">{t.rent ? rm(t.rent) : '—'}/mo</span>
+                        <span className="text-xs font-bold text-primary">{totalRent ? rm(totalRent) : '—'}/mo</span>
+                        {t.parkingRent ? <span className="text-[10px] text-muted-foreground">incl. parking</span> : null}
                         {(() => { const e = contractExpiryLabel(t.contractEnd); return e ? <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${e.cls}`}>Until {e.label}</span> : null })()}
                       </div>
                     </div>
                     <TenantMenu t={t} />
                   </div>
-                ))}
+                )})}
               </div>
 
               {/* Desktop table */}
               <div className="hidden md:block">
-                <div className="grid grid-cols-[2fr_1.6fr_1.1fr_0.9fr_0.9fr_1.1fr_36px] gap-3 px-5 py-3 border-b text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
+                <div className="grid grid-cols-[2fr_1.8fr_1.1fr_1fr_0.9fr_1.1fr_36px] gap-3 px-5 py-3 border-b text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
                   <span>Tenant</span>
                   <span>Assignment</span>
                   <span>Type</span>
-                  <span>Rent</span>
+                  <span>Total Rent</span>
                   <span>Payment</span>
                   <span>Contract</span>
                   <span />
                 </div>
                 {filtered.map(t => {
                   const expiry = contractExpiryLabel(t.contractEnd)
+                  const totalRent = (t.rent ?? 0) + (t.parkingRent ?? 0)
                   return (
                     <div
                       key={t.id}
-                      className="grid grid-cols-[2fr_1.6fr_1.1fr_0.9fr_0.9fr_1.1fr_36px] gap-3 px-5 py-3.5 border-b last:border-0 items-center hover:bg-muted/30 transition-colors cursor-pointer"
+                      className="grid grid-cols-[2fr_1.8fr_1.1fr_1fr_0.9fr_1.1fr_36px] gap-3 px-5 py-3.5 border-b last:border-0 items-center hover:bg-muted/30 transition-colors cursor-pointer"
                       onClick={() => setEditingTenant(t)}
                     >
                       <div className="flex items-center gap-3 min-w-0">
@@ -264,10 +272,15 @@ export default function TenantsPage() {
                       </div>
                       <div className="min-w-0">
                         <div className="font-semibold text-sm truncate">{t.property}</div>
-                        <div className="text-xs text-muted-foreground">{t.sub}</div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {t.sub}{t.parkingUnitName ? ` · 🅿 ${t.parkingUnitName}` : ''}
+                        </div>
                       </div>
                       <div><RentalTypeBadge type={t.type} /></div>
-                      <div className="font-bold text-[13.5px]">{t.rent ? rm(t.rent) : '—'}</div>
+                      <div>
+                        <div className="font-bold text-[13.5px]">{totalRent ? rm(totalRent) : '—'}</div>
+                        {t.parkingRent ? <div className="text-[10px] text-muted-foreground">incl. parking</div> : null}
+                      </div>
                       <div><PaymentStatusBadge status={t.status} /></div>
                       <div>
                         {expiry

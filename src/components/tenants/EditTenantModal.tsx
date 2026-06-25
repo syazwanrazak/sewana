@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { rm } from '@/lib/utils'
 import type { Property } from '@/types'
+import { TenantDocuments } from './TenantDocuments'
 
 interface TenantBasic {
   id: string
@@ -143,12 +144,13 @@ export function EditTenantModal({ open, onClose, onUpdated, tenant, properties }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[480px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Edit Tenant</DialogTitle>
           <p className="text-sm text-muted-foreground">Update contact, unit assignment, and contract details.</p>
         </DialogHeader>
 
+        <div className="overflow-y-auto flex-1 -mx-1 px-1">
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-1">
           {/* Contact */}
           <div>
@@ -263,6 +265,8 @@ export function EditTenantModal({ open, onClose, onUpdated, tenant, properties }
             </div>
           )}
 
+          <TenantDocuments tenantId={tenant.id} />
+
           <div className="flex gap-3 mt-2">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
             <Button type="submit" className="flex-[1.4]" disabled={loading}>
@@ -270,6 +274,7 @@ export function EditTenantModal({ open, onClose, onUpdated, tenant, properties }
             </Button>
           </div>
         </form>
+        </div>
       </DialogContent>
     </Dialog>
   )

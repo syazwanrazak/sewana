@@ -1,15 +1,23 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Upload, FileText, X } from 'lucide-react'
 import { cn, rm, pickColor } from '@/lib/utils'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import type { RentalType, Property } from '@/types'
+
+const DOC_CATEGORIES = ['IC / Identification', 'Tenancy Agreement', 'Receipts', 'Others'] as const
+
+interface QueuedDoc {
+  file: File
+  category: string
+}
 
 interface Props {
   open: boolean
@@ -37,9 +45,26 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
     startDate: today(), endDate: nextYear(),
   })
   const [loading, setLoading] = useState(false)
+  const [docQueue, setDocQueue] = useState<QueuedDoc[]>([])
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [pendingCategory, setPendingCategory] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }))
+
+  function queueDoc() {
+    if (!pendingFile) return
+    if (!pendingCategory) { toast.error('Select a category for the document.'); return }
+    setDocQueue(q => [...q, { file: pendingFile, category: pendingCategory }])
+    setPendingFile(null)
+    setPendingCategory('')
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  function removeQueued(i: number) {
+    setDocQueue(q => q.filter((_, idx) => idx !== i))
+  }
 
   const selectedProperty = properties.find(p => p.id === form.propertyId)
 
@@ -136,8 +161,30 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
       await supabase.from('units').update({ is_occupied: true }).eq('id', form.parkingUnitId)
     }
 
+    // 5. Upload any queued documents
+    for (const { file, category } of docQueue) {
+      const path = `tenants/${tenant.id}/${Date.now()}_${file.name}`
+      const { error: storageErr } = await supabase.storage.from('documents').upload(path, file)
+      if (!storageErr) {
+        const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(path)
+        const fileType = file.type.includes('pdf') ? 'PDF' : file.type.includes('image') ? 'IMG' : 'DOC'
+        const kb = file.size / 1024
+        await supabase.from('documents').insert({
+          tenant_id: tenant.id,
+          name: file.name,
+          category,
+          file_url: publicUrl,
+          file_size: kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${Math.round(kb)} KB`,
+          file_type: fileType,
+        })
+      }
+    }
+
     toast.success(`Tenant "${form.name}" added!`)
     setForm({ name: '', email: '', phone: '', propertyId: '', rentalType: 'room', unitId: '', parkingUnitId: '', startDate: today(), endDate: nextYear() })
+    setDocQueue([])
+    setPendingFile(null)
+    setPendingCategory('')
     setLoading(false)
     onClose()
     onCreated()
@@ -145,12 +192,13 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[480px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Add Tenant</DialogTitle>
           <p className="text-sm text-muted-foreground">Assign to a full unit, a room, or a parking spot.</p>
         </DialogHeader>
 
+        <div className="overflow-y-auto flex-1 -mx-1 px-1">
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-1">
           <div>
             <Label className="mb-1.5 block">Full Name <span className="text-red-500">*</span></Label>
@@ -289,6 +337,65 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
             </div>
           </div>
 
+          {/* Document queue */}
+          <div className="border-t pt-4 flex flex-col gap-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Documents <span className="font-normal normal-case">(optional)</span></p>
+
+            {docQueue.length > 0 && (
+              <div className="flex flex-col gap-1.5 mb-1">
+                {docQueue.map((d, i) => (
+                  <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-muted/30">
+                    <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <span className="flex-1 text-xs truncate">{d.file.name}</span>
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">{d.category}</span>
+                    <button type="button" onClick={() => removeQueued(i)} className="text-muted-foreground hover:text-red-600">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp"
+              onChange={e => setPendingFile(e.target.files?.[0] ?? null)}
+              className="sr-only"
+            />
+            {pendingFile ? (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2 border rounded-lg px-3 py-2 bg-muted/40">
+                  <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <span className="flex-1 text-sm truncate">{pendingFile.name}</span>
+                  <button type="button" onClick={() => { setPendingFile(null); if (fileRef.current) fileRef.current.value = '' }} className="text-muted-foreground hover:text-foreground">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <Select onValueChange={(v: string | null) => setPendingCategory(v ?? '')}>
+                    <SelectTrigger className="flex-1">
+                      {pendingCategory ? <span>{pendingCategory}</span> : <span className="text-muted-foreground">Category…</span>}
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DOC_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" size="sm" onClick={queueDoc} className="flex-shrink-0">Add</Button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="w-full flex items-center gap-2 border border-dashed rounded-lg px-3 py-2.5 text-sm text-muted-foreground hover:border-primary hover:text-foreground transition-colors"
+              >
+                <Upload className="w-4 h-4 flex-shrink-0" />
+                Attach a document…
+              </button>
+            )}
+          </div>
+
           <div className="flex gap-3 mt-2">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
             <Button type="submit" className="flex-[1.4]" disabled={loading}>
@@ -296,6 +403,7 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
             </Button>
           </div>
         </form>
+        </div>
       </DialogContent>
     </Dialog>
   )
