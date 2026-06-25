@@ -138,14 +138,26 @@ export default function TenantsPage() {
   }
 
   async function removeTenant(t: TenantRow) {
-    if (!confirm(`Remove "${t.name}"?\n\nThis ends their contract and frees the assigned unit.`)) return
+    if (!confirm(`Remove "${t.name}"?\n\nThis ends their contract and frees the assigned unit and parking.`)) return
     const supabase = createClient()
+
+    // Terminate main contract
     if (t.contractId) {
       await supabase.from('contracts').update({ status: 'terminated' }).eq('id', t.contractId)
     }
+    // Terminate parking contract
+    if (t.parkingContractId) {
+      await supabase.from('contracts').update({ status: 'terminated' }).eq('id', t.parkingContractId)
+    }
+    // Free main unit
     if (t.unitId) {
       await supabase.from('units').update({ is_occupied: false }).eq('id', t.unitId)
     }
+    // Free parking spot
+    if (t.parkingUnitId) {
+      await supabase.from('units').update({ is_occupied: false }).eq('id', t.parkingUnitId)
+    }
+
     await supabase.from('tenants').delete().eq('id', t.id)
     load()
   }
