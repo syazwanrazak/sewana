@@ -45,7 +45,7 @@ export default function PaymentsPage() {
       .from('payments')
       .select('id, amount, due_date, status, rental_type, tenant:tenants(name, color), property:properties(name)')
       .order('due_date', { ascending: false })
-    setPayments((data ?? []) as PaymentRow[])
+    setPayments((data ?? []) as unknown as PaymentRow[])
     setLoading(false)
   }, [])
 
