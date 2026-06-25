@@ -35,12 +35,30 @@ export async function POST(request: NextRequest) {
       }),
     })
 
-    const linkBody = await linkRes.json()
+    let linkBody = await linkRes.json()
 
+    // If user already exists, fall back to magic link (one-time login link)
     if (!linkRes.ok) {
-      return NextResponse.json({
-        error: linkBody.msg ?? linkBody.message ?? linkBody.error_description ?? JSON.stringify(linkBody),
-      }, { status: 400 })
+      const errMsg: string = linkBody.msg ?? linkBody.message ?? linkBody.error_description ?? ''
+      if (errMsg.toLowerCase().includes('already been registered') || errMsg.toLowerCase().includes('already registered')) {
+        const magicRes = await fetch(`${supabaseUrl}/auth/v1/admin/generate_link`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            type: 'magiclink',
+            email,
+            redirect_to: `${appUrl}/portal`,
+          }),
+        })
+        linkBody = await magicRes.json()
+        if (!magicRes.ok) {
+          return NextResponse.json({
+            error: linkBody.msg ?? linkBody.message ?? linkBody.error_description ?? JSON.stringify(linkBody),
+          }, { status: 400 })
+        }
+      } else {
+        return NextResponse.json({ error: errMsg || JSON.stringify(linkBody) }, { status: 400 })
+      }
     }
 
     const userId    = linkBody.user?.id
