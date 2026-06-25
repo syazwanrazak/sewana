@@ -38,7 +38,7 @@ export default function DocumentsPage() {
       .from('documents')
       .select('id, name, category, file_url, file_size, file_type, created_at, property:properties(name), tenant:tenants(name)')
       .order('created_at', { ascending: false })
-    setDocs((data ?? []) as Doc[])
+    setDocs((data ?? []) as unknown as Doc[])
     setLoading(false)
   }, [])
 
