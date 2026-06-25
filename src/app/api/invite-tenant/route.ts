@@ -37,11 +37,27 @@ export async function POST(request: NextRequest) {
 
     let linkBody = await linkRes.json()
 
-    // If user already exists, fall back to magic link (one-time login link)
+    // If user already exists, fall back to a password-reset (recovery) link
     if (!linkRes.ok) {
       const errMsg: string = linkBody.msg ?? linkBody.message ?? linkBody.error_description ?? ''
       if (errMsg.toLowerCase().includes('already been registered') || errMsg.toLowerCase().includes('already registered')) {
-        const magicRes = await fetch(`${supabaseUrl}/auth/v1/admin/generate_link`, {
+        // Look up the existing user to check their role before proceeding
+        const listRes = await fetch(
+          `${supabaseUrl}/auth/v1/admin/users?email=${encodeURIComponent(email)}`,
+          { headers }
+        )
+        const listBody = await listRes.json()
+        const existingUser = listBody?.users?.[0]
+        const existingRole = existingUser?.app_metadata?.role as string | undefined
+
+        // Block admin accounts — same email cannot be both admin and tenant
+        if (existingRole !== 'tenant') {
+          return NextResponse.json({
+            error: 'This email is already registered as an admin account. Use a different email for this tenant.',
+          }, { status: 409 })
+        }
+
+        const recoveryRes = await fetch(`${supabaseUrl}/auth/v1/admin/generate_link`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
@@ -50,8 +66,8 @@ export async function POST(request: NextRequest) {
             redirect_to: `${appUrl}/set-password`,
           }),
         })
-        linkBody = await magicRes.json()
-        if (!magicRes.ok) {
+        linkBody = await recoveryRes.json()
+        if (!recoveryRes.ok) {
           return NextResponse.json({
             error: linkBody.msg ?? linkBody.message ?? linkBody.error_description ?? JSON.stringify(linkBody),
           }, { status: 400 })
