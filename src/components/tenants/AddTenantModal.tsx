@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Upload, FileText, X, Copy, Check } from 'lucide-react'
+import { Upload, FileText, X, Copy, Check, RefreshCw } from 'lucide-react'
 import { cn, rm, pickColor } from '@/lib/utils'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -38,15 +38,20 @@ const nextYear = () => {
   return d.toISOString().slice(0, 10)
 }
 
+function genPassword(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+  return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('') + '!'
+}
+
 export function AddTenantModal({ open, onClose, onCreated, properties }: Props) {
   const [form, setForm] = useState({
-    name: '', email: '', phone: '',
+    name: '', email: '', phone: '', password: '',
     propertyId: '', rentalType: 'room' as RentalType, unitId: '', parkingUnitId: '',
     startDate: today(), endDate: nextYear(),
   })
   const [loading, setLoading] = useState(false)
-  const [inviteLink, setInviteLink] = useState('')
-  const [copied, setCopied] = useState(false)
+  const [credentials, setCredentials] = useState<{ email: string; password: string; name: string } | null>(null)
+  const [credCopied, setCredCopied] = useState(false)
   const [docQueue, setDocQueue] = useState<QueuedDoc[]>([])
   const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [pendingCategory, setPendingCategory] = useState('')
@@ -70,7 +75,6 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
 
   const selectedProperty = properties.find(p => p.id === form.propertyId)
 
-  // Show only vacant units matching the selected rental type
   const subOptions = selectedProperty?.units?.filter(u => {
     if (form.rentalType === 'full')    return u.unit_type === 'full'    && !u.is_occupied
     if (form.rentalType === 'room')    return u.unit_type === 'room'    && !u.is_occupied
@@ -78,18 +82,13 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
     return false
   }) || []
 
-  // Vacant parking spots for optional bundling
   const parkingOptions = (selectedProperty?.units ?? []).filter(u =>
     u.unit_type === 'parking' && !u.is_occupied
   )
 
-  // Auto-select the unit when there's exactly one option (e.g. Full Unit properties)
   useEffect(() => {
     if (subOptions.length === 1 && !form.unitId) {
       setForm(f => ({ ...f, unitId: subOptions[0].id }))
-    }
-    if (subOptions.length === 0 || (subOptions.length > 1 && !subOptions.find(u => u.id === form.unitId))) {
-      // Reset unit if it's no longer valid
     }
   }, [form.propertyId, form.rentalType, subOptions.length])
 
@@ -102,7 +101,7 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
     setLoading(true)
     const supabase = createClient()
 
-    // 1. Create the tenant
+    // 1. Create the tenant record
     const { data: tenant, error: tenantErr } = await supabase
       .from('tenants')
       .insert({
@@ -120,9 +119,8 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
       return
     }
 
-    // 2. Create a contract linking the tenant to the property/unit
+    // 2. Create a contract
     const selectedUnit = subOptions.find(u => u.id === form.unitId)
-
     const { error: contractErr } = await supabase.from('contracts').insert({
       tenant_id: tenant.id,
       property_id: form.propertyId,
@@ -163,7 +161,7 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
       await supabase.from('units').update({ is_occupied: true }).eq('id', form.parkingUnitId)
     }
 
-    // 5. Upload any queued documents
+    // 5. Upload queued documents
     for (const { file, category } of docQueue) {
       const path = `tenants/${tenant.id}/${Date.now()}_${file.name}`
       const { error: storageErr } = await supabase.storage.from('documents').upload(path, file)
@@ -182,68 +180,90 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
       }
     }
 
-    toast.success(`Tenant "${form.name}" added!`)
+    // 6. Create portal account if email + password provided
+    const email = form.email.trim()
+    const password = form.password.trim()
 
-    // Generate portal invite link if email provided
-    if (form.email.trim()) {
+    const resetForm = () => {
+      setForm({ name: '', email: '', phone: '', password: '', propertyId: '', rentalType: 'room', unitId: '', parkingUnitId: '', startDate: today(), endDate: nextYear() })
+      setDocQueue([])
+      setPendingFile(null)
+      setPendingCategory('')
+    }
+
+    if (email && password) {
       try {
-        const res = await fetch('/api/invite-tenant', {
+        const res = await fetch('/api/tenant-auth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: form.email.trim(), tenantId: tenant.id, name: form.name.trim() }),
+          body: JSON.stringify({ action: 'create', email, password, tenantId: tenant.id }),
         })
         const json = await res.json()
-        if (json.inviteLink) {
-          setInviteLink(json.inviteLink)
-        } else if (json.error) {
-          toast.error('Could not generate invite link: ' + json.error)
+        if (json.error) {
+          toast.warning('Tenant added, but portal setup failed: ' + json.error)
+        } else {
+          setCredentials({ email, password, name: form.name.trim() })
         }
       } catch {
-        toast.error('Invite request failed — check server logs.')
+        toast.warning('Tenant added, but portal request failed.')
       }
+    } else {
+      toast.success(`Tenant "${form.name}" added!`)
     }
-    setForm({ name: '', email: '', phone: '', propertyId: '', rentalType: 'room', unitId: '', parkingUnitId: '', startDate: today(), endDate: nextYear() })
-    setDocQueue([])
-    setPendingFile(null)
-    setPendingCategory('')
+
+    resetForm()
     setLoading(false)
     onClose()
     onCreated()
   }
 
-  async function copyLink() {
-    await navigator.clipboard.writeText(inviteLink)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  async function copyCredentials() {
+    if (!credentials) return
+    const portalUrl = `${window.location.origin}/portal/login`
+    const msg = `Hi ${credentials.name.split(' ')[0]}! Your Sewana tenant portal is ready.\n\nLogin at: ${portalUrl}\nEmail: ${credentials.email}\nPassword: ${credentials.password}\n\nPlease keep your credentials safe.`
+    await navigator.clipboard.writeText(msg)
+    setCredCopied(true)
+    setTimeout(() => setCredCopied(false), 2000)
   }
 
-  // Show invite link dialog after tenant is created
-  if (inviteLink) {
+  // Show credentials dialog after successful creation
+  if (credentials) {
     return (
-      <Dialog open onOpenChange={() => { setInviteLink(''); onClose() }}>
+      <Dialog open onOpenChange={() => setCredentials(null)}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>Tenant Added</DialogTitle>
             <p className="text-sm text-muted-foreground">
-              Copy the portal link below and send it to your tenant via WhatsApp. They'll use it to set up their password and access the portal.
+              Share these login details with <strong>{credentials.name}</strong> via WhatsApp.
             </p>
           </DialogHeader>
           <div className="flex flex-col gap-3 mt-1">
+            <div className="rounded-xl border bg-muted/40 px-4 py-3 space-y-2.5">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Portal</span>
+                <span className="font-medium text-xs text-foreground">/portal/login</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Email</span>
+                <span className="font-mono text-xs">{credentials.email}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Password</span>
+                <span className="font-bold font-mono tracking-widest text-base">{credentials.password}</span>
+              </div>
+            </div>
             <button
-              onClick={copyLink}
+              onClick={copyCredentials}
               className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all border-2 ${
-                copied
+                credCopied
                   ? 'bg-green-50 border-green-400 text-green-700'
                   : 'bg-primary/5 border-primary text-primary hover:bg-primary/10'
               }`}
             >
-              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              {copied ? 'Link Copied!' : 'Copy Portal Link'}
+              {credCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {credCopied ? 'Copied!' : 'Copy for WhatsApp'}
             </button>
-            <p className="text-xs text-center text-muted-foreground">
-              Link expires in 24 hours · Regenerate anytime from the tenant menu
-            </p>
-            <Button variant="outline" onClick={() => { setInviteLink(''); onClose() }} className="w-full">
+            <Button variant="outline" onClick={() => setCredentials(null)} className="w-full">
               Done
             </Button>
           </div>
@@ -276,6 +296,31 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
               <Input placeholder="012-345 6789" value={form.phone} onChange={set('phone')} />
             </div>
           </div>
+
+          {form.email && (
+            <div>
+              <Label className="mb-1.5 block">Portal Password</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  placeholder="Set a password…"
+                  value={form.password}
+                  onChange={set('password')}
+                  className="font-mono"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  title="Generate password"
+                  onClick={() => setForm(f => ({ ...f, password: genPassword() }))}
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Leave blank to skip portal access.</p>
+            </div>
+          )}
 
           <div>
             <Label className="mb-1.5 block">Property <span className="text-red-500">*</span></Label>
@@ -351,7 +396,6 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
             </div>
           )}
 
-          {/* Optional parking — only when renting a room or full unit */}
           {(form.rentalType === 'room' || form.rentalType === 'full') && form.propertyId && parkingOptions.length > 0 && (
             <div>
               <Label className="mb-1.5 block">
@@ -399,7 +443,6 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
             </div>
           </div>
 
-          {/* Document queue */}
           <div className="border-t pt-4 flex flex-col gap-2">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Documents <span className="font-normal normal-case">(optional)</span></p>
 

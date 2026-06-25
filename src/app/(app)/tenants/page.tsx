@@ -16,7 +16,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
-import { MoreHorizontal, Pencil, UserX, RefreshCw, MessageCircle, Link, Copy, Check, KeyRound } from 'lucide-react'
+import { MoreHorizontal, Pencil, UserX, RefreshCw, MessageCircle, KeyRound, Copy, Check } from 'lucide-react'
 import { RenewContractModal } from '@/components/tenants/RenewContractModal'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { RentalType, PaymentStatus, Property } from '@/types'
@@ -59,8 +59,8 @@ export default function TenantsPage() {
   const [showModal, setShowModal] = useState(false)
   const [editingTenant, setEditingTenant] = useState<TenantRow | null>(null)
   const [renewingTenant, setRenewingTenant] = useState<TenantRow | null>(null)
-  const [inviteDialog, setInviteDialog] = useState<{ link: string; name: string } | null>(null)
-  const [copied, setCopied] = useState(false)
+  const [resetDialog, setResetDialog] = useState<{ name: string; email: string; password: string } | null>(null)
+  const [resetCopied, setResetCopied] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -165,26 +165,28 @@ export default function TenantsPage() {
     load()
   }
 
-  async function openInviteDialog(t: TenantRow) {
+  async function resetPassword(t: TenantRow) {
     if (!t.email) { toast.error(`No email on file for ${t.name}.`); return }
-    const res = await fetch('/api/invite-tenant', {
+    const res = await fetch('/api/tenant-auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: t.email, tenantId: t.id, name: t.name }),
+      body: JSON.stringify({ action: 'reset', email: t.email, tenantId: t.id }),
     })
     const json = await res.json()
-    if (json.inviteLink) {
-      setInviteDialog({ link: json.inviteLink, name: t.name })
+    if (json.password) {
+      setResetDialog({ name: t.name, email: t.email, password: json.password })
     } else {
-      toast.error(json.error ?? 'Failed to generate link.')
+      toast.error(json.error ?? 'Failed to reset password.')
     }
   }
 
-  async function copyDialogLink() {
-    if (!inviteDialog) return
-    await navigator.clipboard.writeText(inviteDialog.link)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  async function copyResetCredentials() {
+    if (!resetDialog) return
+    const portalUrl = `${window.location.origin}/portal/login`
+    const msg = `Hi ${resetDialog.name.split(' ')[0]}! Your Sewana portal password has been reset.\n\nLogin at: ${portalUrl}\nEmail: ${resetDialog.email}\nNew Password: ${resetDialog.password}`
+    await navigator.clipboard.writeText(msg)
+    setResetCopied(true)
+    setTimeout(() => setResetCopied(false), 2000)
   }
 
   function openWhatsApp(t: TenantRow) {
@@ -214,11 +216,8 @@ export default function TenantsPage() {
               <RefreshCw className="w-3.5 h-3.5" /> Renew Contract
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem onClick={e => { e.stopPropagation(); openInviteDialog(t) }}>
-            <Link className="w-3.5 h-3.5" /> Copy Invite Link
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={e => { e.stopPropagation(); openInviteDialog(t) }}>
-            <KeyRound className="w-3.5 h-3.5" /> Reset Portal Access
+          <DropdownMenuItem onClick={e => { e.stopPropagation(); resetPassword(t) }}>
+            <KeyRound className="w-3.5 h-3.5" /> Reset Password
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => openWhatsApp(t)}>
             <MessageCircle className="w-3.5 h-3.5" /> WhatsApp Reminder
@@ -380,25 +379,33 @@ export default function TenantsPage() {
         />
       )}
 
-      {/* Invite link dialog */}
-      <Dialog open={!!inviteDialog} onOpenChange={() => { setInviteDialog(null); setCopied(false) }}>
-        <DialogContent className="sm:max-w-[440px]">
+      {/* Reset password dialog */}
+      <Dialog open={!!resetDialog} onOpenChange={() => { setResetDialog(null); setResetCopied(false) }}>
+        <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle>Portal Invite Link — {inviteDialog?.name}</DialogTitle>
-            <p className="text-sm text-muted-foreground">Copy this link and send it to your tenant via WhatsApp or any messaging app.</p>
+            <DialogTitle>Password Reset — {resetDialog?.name}</DialogTitle>
+            <p className="text-sm text-muted-foreground">Share these new credentials with your tenant via WhatsApp.</p>
           </DialogHeader>
           <div className="flex flex-col gap-3 mt-1">
-            <textarea
-              readOnly
-              rows={3}
-              value={inviteDialog?.link ?? ''}
-              className="w-full border rounded-lg px-3 py-2.5 text-xs text-muted-foreground bg-muted/40 resize-none focus:outline-none"
-              onClick={e => (e.target as HTMLTextAreaElement).select()}
-            />
-            <Button onClick={copyDialogLink} variant={copied ? 'outline' : 'default'} className="w-full">
-              {copied ? <><Check className="w-4 h-4 mr-2" /> Copied!</> : <><Copy className="w-4 h-4 mr-2" /> Copy Link</>}
+            <div className="rounded-xl border bg-muted/40 px-4 py-3 space-y-2.5">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Portal</span>
+                <span className="font-medium text-xs">/portal/login</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Email</span>
+                <span className="font-mono text-xs">{resetDialog?.email}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">New Password</span>
+                <span className="font-bold font-mono tracking-widest text-base">{resetDialog?.password}</span>
+              </div>
+            </div>
+            <Button onClick={copyResetCredentials} variant={resetCopied ? 'outline' : 'default'} className="w-full">
+              {resetCopied
+                ? <><Check className="w-4 h-4 mr-2" /> Copied!</>
+                : <><Copy className="w-4 h-4 mr-2" /> Copy for WhatsApp</>}
             </Button>
-            <p className="text-xs text-center text-muted-foreground">Link expires in 24 hours</p>
           </div>
         </DialogContent>
       </Dialog>
