@@ -8,7 +8,8 @@ import { propertyRevenue, propertyOccupancy } from '@/lib/seed'
 import { rm, formatDate } from '@/lib/utils'
 import { PriorityBadge } from '@/components/shared/Badge'
 import { AddUnitButton } from '@/components/properties/AddUnitButton'
-import { UnitActions } from '@/components/properties/UnitActions'
+import { UnitRow } from '@/components/properties/UnitRow'
+import { ParkingCard } from '@/components/properties/ParkingCard'
 import { UploadDocumentButton } from '@/components/properties/UploadDocumentButton'
 import { DocumentActions } from '@/components/properties/DocumentActions'
 import { UtilityTracker } from '@/components/properties/UtilityTracker'
@@ -160,16 +161,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                 </div>
                 <div className="flex flex-col gap-2.5">
                   {[...rooms, ...fullUnits].map((r: any) => (
-                    <div key={r.id} className="flex items-center gap-3 px-4 py-3.5 border rounded-xl hover:border-primary transition-colors">
-                      <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${r.is_occupied ? 'bg-green-500' : 'bg-slate-300'}`} />
-                      <div className="w-28 font-bold text-[14px]">{r.name}</div>
-                      <div className="flex-1 text-sm text-muted-foreground">{r.is_occupied ? 'Occupied' : 'Vacant'}</div>
-                      <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${r.is_occupied ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
-                        {r.is_occupied ? 'Occupied' : 'Vacant'}
-                      </span>
-                      <div className="w-24 text-right font-bold text-sm">{rm(r.price)}/mo</div>
-                      <UnitActions unit={r} />
-                    </div>
+                    <UnitRow key={r.id} unit={r} />
                   ))}
                   {rooms.length === 0 && fullUnits.length === 0 && (
                     <p className="text-center py-12 text-muted-foreground text-sm">No rooms added yet.</p>
@@ -186,18 +178,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                 {parking.length > 0 ? (
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
                     {parking.map((pk: any) => (
-                      <div key={pk.id} className="border rounded-xl p-4 hover:border-primary transition-colors">
-                        <div className="flex justify-between items-start mb-2.5">
-                          <span className="font-bold text-[15px]">{pk.name}</span>
-                          <div className="flex items-center gap-1.5">
-                            <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${pk.is_occupied ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
-                              {pk.is_occupied ? 'Assigned' : 'Available'}
-                            </span>
-                            <UnitActions unit={pk} />
-                          </div>
-                        </div>
-                        <div className="font-bold text-sm text-primary">{pk.price ? rm(pk.price) + '/mo' : 'Included'}</div>
-                      </div>
+                      <ParkingCard key={pk.id} unit={pk} />
                     ))}
                   </div>
                 ) : (
