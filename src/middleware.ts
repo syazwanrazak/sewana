@@ -26,15 +26,16 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
-  const isLoginPage    = pathname === '/login'
-  const isAuthRoute    = pathname.startsWith('/auth/') || pathname === '/set-password'
-  const isPortalRoute  = pathname.startsWith('/portal')
-  const isAdminRoute   = !isLoginPage && !isAuthRoute && !isPortalRoute
+  const isLoginPage        = pathname === '/login'
+  const isTenantLoginPage  = pathname === '/portal/login'
+  const isAuthRoute        = pathname.startsWith('/auth/') || pathname === '/set-password' || isTenantLoginPage
+  const isPortalRoute      = pathname.startsWith('/portal')
+  const isAdminRoute       = !isLoginPage && !isAuthRoute && !isPortalRoute
 
-  // Unauthenticated → login
+  // Unauthenticated: portal routes → tenant login, everything else → admin login
   if (!user && !isLoginPage && !isAuthRoute) {
     const url = request.nextUrl.clone()
-    url.pathname = '/login'
+    url.pathname = isPortalRoute ? '/portal/login' : '/login'
     return NextResponse.redirect(url)
   }
 

@@ -19,7 +19,7 @@ export function PortalShell({ children, name }: { children: React.ReactNode; nam
   async function signOut() {
     const supabase = createClient()
     await supabase.auth.signOut()
-    router.push('/login')
+    router.push('/portal/login')
   }
 
   return (

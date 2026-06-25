@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
           method: 'POST',
           headers,
           body: JSON.stringify({
-            type: 'magiclink',
+            type: 'recovery',
             email,
             redirect_to: `${appUrl}/set-password`,
           }),

@@ -16,7 +16,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
-import { MoreHorizontal, Pencil, UserX, RefreshCw, MessageCircle, Link, Copy, Check } from 'lucide-react'
+import { MoreHorizontal, Pencil, UserX, RefreshCw, MessageCircle, Link, Copy, Check, KeyRound } from 'lucide-react'
 import { RenewContractModal } from '@/components/tenants/RenewContractModal'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { RentalType, PaymentStatus, Property } from '@/types'
@@ -216,6 +216,9 @@ export default function TenantsPage() {
           )}
           <DropdownMenuItem onClick={e => { e.stopPropagation(); openInviteDialog(t) }}>
             <Link className="w-3.5 h-3.5" /> Copy Invite Link
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={e => { e.stopPropagation(); openInviteDialog(t) }}>
+            <KeyRound className="w-3.5 h-3.5" /> Reset Portal Access
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => openWhatsApp(t)}>
             <MessageCircle className="w-3.5 h-3.5" /> WhatsApp Reminder
