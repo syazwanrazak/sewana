@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/layout/Header'
 import { Avatar } from '@/components/shared/Avatar'
 import { RentalTypeBadge, PaymentStatusBadge } from '@/components/shared/Badge'
 import { rm, formatDate } from '@/lib/utils'
+import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { AddTenantModal } from '@/components/tenants/AddTenantModal'
 import { EditTenantModal } from '@/components/tenants/EditTenantModal'
@@ -15,7 +16,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
-import { MoreHorizontal, Pencil, UserX, RefreshCw } from 'lucide-react'
+import { MoreHorizontal, Pencil, UserX, RefreshCw, MessageCircle } from 'lucide-react'
 import { RenewContractModal } from '@/components/tenants/RenewContractModal'
 import type { RentalType, PaymentStatus, Property } from '@/types'
 
@@ -67,7 +68,7 @@ export default function TenantsPage() {
       supabase
         .from('tenants')
         .select(`
-          id, name, color, created_at,
+          id, name, email, phone, color, created_at,
           contracts(
             id, rental_type, monthly_rent, status, start_date, end_date,
             property:properties(id, name),
@@ -149,6 +150,14 @@ export default function TenantsPage() {
     load()
   }
 
+  function openWhatsApp(t: TenantRow) {
+    const phone = (t.phone ?? '').replace(/\D/g, '')
+    if (!phone) { toast.error(`No phone number for ${t.name}.`); return }
+    const totalRent = (t.rent ?? 0) + (t.parkingRent ?? 0)
+    const msg = `Hi ${t.name.split(' ')[0]}, this is a friendly reminder that your rent of RM ${totalRent} is due. Please make payment via DuitNow or bank transfer and submit your proof via the Sewana tenant portal. Thank you!`
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank')
+  }
+
   function TenantMenu({ t }: { t: TenantRow }) {
     return (
       <DropdownMenu>
@@ -167,6 +176,9 @@ export default function TenantsPage() {
               <RefreshCw className="w-3.5 h-3.5" /> Renew Contract
             </DropdownMenuItem>
           )}
+          <DropdownMenuItem onClick={() => openWhatsApp(t)}>
+            <MessageCircle className="w-3.5 h-3.5" /> WhatsApp Reminder
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onClick={() => removeTenant(t)}>
             <UserX className="w-3.5 h-3.5" /> Remove Tenant

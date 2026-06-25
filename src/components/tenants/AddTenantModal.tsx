@@ -180,7 +180,16 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
       }
     }
 
-    toast.success(`Tenant "${form.name}" added!`)
+    // Invite tenant to portal if email provided
+    if (form.email.trim()) {
+      fetch('/api/invite-tenant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: form.email.trim(), tenantId: tenant.id, name: form.name.trim() }),
+      }).catch(() => {})
+    }
+
+    toast.success(`Tenant "${form.name}" added!${form.email.trim() ? ' Invite email sent.' : ''}`)
     setForm({ name: '', email: '', phone: '', propertyId: '', rentalType: 'room', unitId: '', parkingUnitId: '', startDate: today(), endDate: nextYear() })
     setDocQueue([])
     setPendingFile(null)

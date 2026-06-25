@@ -7,7 +7,18 @@ import { Avatar } from '@/components/shared/Avatar'
 import { PaymentStatusBadge, RentalTypeBadge } from '@/components/shared/Badge'
 import { createClient } from '@/lib/supabase/client'
 import { rm } from '@/lib/utils'
+import { toast } from 'sonner'
+import { ExternalLink, CheckCircle, XCircle } from 'lucide-react'
 import type { PaymentStatus, RentalType } from '@/types'
+
+interface PendingReceipt {
+  id: string
+  amount: number
+  pay_month: string
+  receipt_url: string
+  file_name: string | null
+  tenant: { id: string; name: string; email: string | null } | null
+}
 
 interface PaymentRow {
   id: string
@@ -34,20 +45,61 @@ const dotColors: Record<string, string> = { paid: 'bg-green-500', pending: 'bg-a
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<PaymentRow[]>([])
+  const [pendingReceipts, setPendingReceipts] = useState<PendingReceipt[]>([])
   const [loading, setLoading] = useState(true)
   const [emailOn, setEmailOn] = useState(true)
   const [waOn, setWaOn] = useState(true)
+  const [rejecting, setRejecting] = useState<string | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
     const supabase = createClient()
-    const { data } = await supabase
-      .from('payments')
-      .select('id, amount, due_date, status, rental_type, tenant:tenants(name, color), property:properties(name)')
-      .order('due_date', { ascending: false })
-    setPayments((data ?? []) as unknown as PaymentRow[])
+    const [paymentsRes, receiptsRes] = await Promise.all([
+      supabase
+        .from('payments')
+        .select('id, amount, due_date, status, rental_type, tenant:tenants(name, color), property:properties(name)')
+        .order('due_date', { ascending: false }),
+      supabase
+        .from('payment_receipts')
+        .select('id, amount, pay_month, receipt_url, file_name, tenant:tenants(id, name, email)')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true }),
+    ])
+    setPayments((paymentsRes.data ?? []) as unknown as PaymentRow[])
+    setPendingReceipts((receiptsRes.data ?? []) as unknown as PendingReceipt[])
     setLoading(false)
   }, [])
+
+  async function approveReceipt(r: PendingReceipt) {
+    const supabase = createClient()
+    await supabase.from('payment_receipts').update({ status: 'approved', reviewed_at: new Date().toISOString() }).eq('id', r.id)
+    if (r.tenant?.email) {
+      fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'payment_approved', to: r.tenant.email, data: { name: r.tenant.name, amount: r.amount, month: r.pay_month } }),
+      }).catch(() => {})
+    }
+    toast.success(`Receipt approved — ${r.tenant?.name}`)
+    load()
+  }
+
+  async function rejectReceipt(r: PendingReceipt) {
+    const supabase = createClient()
+    await supabase.from('payment_receipts').update({ status: 'rejected', rejection_reason: rejectReason || null, reviewed_at: new Date().toISOString() }).eq('id', r.id)
+    if (r.tenant?.email) {
+      fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'payment_rejected', to: r.tenant.email, data: { name: r.tenant.name, amount: r.amount, reason: rejectReason } }),
+      }).catch(() => {})
+    }
+    toast.success(`Receipt rejected — email sent to ${r.tenant?.name}`)
+    setRejecting(null)
+    setRejectReason('')
+    load()
+  }
 
   useEffect(() => { load() }, [load])
 
@@ -86,6 +138,66 @@ export default function PaymentsPage() {
           title="Payments & Reminders"
           subtitle="Multi-type billing — unit rent, room rent, and parking fees in one ledger."
         />
+
+        {/* Pending receipts queue */}
+        {pendingReceipts.length > 0 && (
+          <Card className="overflow-hidden mb-4">
+            <div className="px-5 py-4 border-b flex justify-between items-center bg-amber-50">
+              <span className="font-bold text-[15px] text-amber-800">Payment Receipts to Review</span>
+              <span className="text-xs font-semibold bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">{pendingReceipts.length} pending</span>
+            </div>
+            {pendingReceipts.map(r => (
+              <div key={r.id} className="border-b last:border-0 px-5 py-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="font-semibold text-sm">{r.tenant?.name ?? '—'}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {new Date(r.pay_month).toLocaleDateString('en-MY', { month: 'long', year: 'numeric' })} · {rm(r.amount)}
+                      {r.file_name ? ` · ${r.file_name}` : ''}
+                    </div>
+                    {rejecting === r.id && (
+                      <div className="mt-2 flex gap-2 items-center">
+                        <input
+                          className="border rounded-lg px-2 py-1 text-xs flex-1 focus:outline-none focus:ring-1 focus:ring-ring"
+                          placeholder="Reason (optional)…"
+                          value={rejectReason}
+                          onChange={e => setRejectReason(e.target.value)}
+                        />
+                        <button
+                          onClick={() => rejectReceipt(r)}
+                          className="text-xs font-semibold text-red-600 hover:underline"
+                        >Confirm</button>
+                        <button
+                          onClick={() => { setRejecting(null); setRejectReason('') }}
+                          className="text-xs text-muted-foreground hover:underline"
+                        >Cancel</button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <a href={r.receipt_url} target="_blank" rel="noopener noreferrer" title="View receipt" className="w-8 h-8 flex items-center justify-center rounded-lg border hover:bg-muted transition-colors">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                    <button
+                      onClick={() => approveReceipt(r)}
+                      title="Approve"
+                      className="w-8 h-8 flex items-center justify-center rounded-lg border border-green-200 bg-green-50 hover:bg-green-100 text-green-700 transition-colors"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => { setRejecting(r.id); setRejectReason('') }}
+                      title="Reject"
+                      className="w-8 h-8 flex items-center justify-center rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 transition-colors"
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-[1.85fr_1fr] gap-4 items-start">
           {/* Ledger */}

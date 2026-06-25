@@ -20,13 +20,14 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
       toast.error(error.message)
       setLoading(false)
       return
     }
-    router.push('/dashboard')
+    const role = data.user?.app_metadata?.role
+    router.push(role === 'tenant' ? '/portal' : '/dashboard')
     router.refresh()
   }
 
