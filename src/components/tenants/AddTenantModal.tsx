@@ -33,7 +33,7 @@ const nextYear = () => {
 export function AddTenantModal({ open, onClose, onCreated, properties }: Props) {
   const [form, setForm] = useState({
     name: '', email: '', phone: '',
-    propertyId: '', rentalType: 'room' as RentalType, unitId: '',
+    propertyId: '', rentalType: 'room' as RentalType, unitId: '', parkingUnitId: '',
     startDate: today(), endDate: nextYear(),
   })
   const [loading, setLoading] = useState(false)
@@ -50,6 +50,11 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
     if (form.rentalType === 'parking') return u.unit_type === 'parking' && !u.is_occupied
     return false
   }) || []
+
+  // Vacant parking spots for optional bundling
+  const parkingOptions = (selectedProperty?.units ?? []).filter(u =>
+    u.unit_type === 'parking' && !u.is_occupied
+  )
 
   // Auto-select the unit when there's exactly one option (e.g. Full Unit properties)
   useEffect(() => {
@@ -114,8 +119,25 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
       await supabase.from('units').update({ is_occupied: true }).eq('id', form.unitId)
     }
 
+    // 4. Assign parking if selected
+    if (form.parkingUnitId && form.rentalType !== 'parking') {
+      const parkingUnit = parkingOptions.find(u => u.id === form.parkingUnitId)
+      await supabase.from('contracts').insert({
+        tenant_id: tenant.id,
+        property_id: form.propertyId,
+        unit_id: form.parkingUnitId,
+        rental_type: 'parking',
+        monthly_rent: parkingUnit?.price ?? 0,
+        deposit: 0,
+        start_date: form.startDate,
+        end_date: form.endDate,
+        status: 'active',
+      })
+      await supabase.from('units').update({ is_occupied: true }).eq('id', form.parkingUnitId)
+    }
+
     toast.success(`Tenant "${form.name}" added!`)
-    setForm({ name: '', email: '', phone: '', propertyId: '', rentalType: 'room', unitId: '', startDate: today(), endDate: nextYear() })
+    setForm({ name: '', email: '', phone: '', propertyId: '', rentalType: 'room', unitId: '', parkingUnitId: '', startDate: today(), endDate: nextYear() })
     setLoading(false)
     onClose()
     onCreated()
@@ -212,6 +234,31 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
                   {subOptions.map(u => (
                     <SelectItem key={u.id} value={u.id}>
                       {u.name} — {rm(u.price)}/mo
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Optional parking — only when renting a room or full unit */}
+          {(form.rentalType === 'room' || form.rentalType === 'full') && form.propertyId && parkingOptions.length > 0 && (
+            <div>
+              <Label className="mb-1.5 block">
+                Parking <span className="text-muted-foreground text-xs font-normal">(optional)</span>
+              </Label>
+              <Select onValueChange={(v: string | null) => setForm(f => ({ ...f, parkingUnitId: v ?? '' }))}>
+                <SelectTrigger>
+                  {form.parkingUnitId
+                    ? <span>{parkingOptions.find(u => u.id === form.parkingUnitId)?.name}</span>
+                    : <span className="text-muted-foreground">No parking</span>
+                  }
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No parking</SelectItem>
+                  {parkingOptions.map(u => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name}{u.price ? ` — ${rm(u.price)}/mo` : ' — Included'}
                     </SelectItem>
                   ))}
                 </SelectContent>

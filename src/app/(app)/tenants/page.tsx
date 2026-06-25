@@ -33,6 +33,7 @@ interface TenantRow {
   phone?: string
   color: string
   property: string
+  propertyId?: string
   sub: string
   type: RentalType
   rent: number
@@ -42,6 +43,8 @@ interface TenantRow {
   unitId?: string
   contractStart?: string
   contractEnd?: string
+  parkingContractId?: string
+  parkingUnitId?: string
 }
 
 export default function TenantsPage() {
@@ -79,8 +82,12 @@ export default function TenantsPage() {
 
     // Derive a flat row per tenant for the table
     const rows: TenantRow[] = (tenantsRes.data ?? []).map((t: any) => {
-      // Prefer the active contract; fall back to the first one
-      const contract = t.contracts?.find((c: any) => c.status === 'active') ?? t.contracts?.[0]
+      // Main contract = active non-parking; fall back to first non-parking
+      const contract = t.contracts?.find((c: any) => c.status === 'active' && c.rental_type !== 'parking')
+        ?? t.contracts?.find((c: any) => c.rental_type !== 'parking')
+        ?? t.contracts?.[0]
+      // Parking contract = active parking contract
+      const parkingContract = t.contracts?.find((c: any) => c.status === 'active' && c.rental_type === 'parking')
       // Latest payment by due_date
       const latestPayment = [...(contract?.payments ?? [])]
         .sort((a: any, b: any) => b.due_date.localeCompare(a.due_date))[0]
@@ -92,6 +99,7 @@ export default function TenantsPage() {
         phone: t.phone,
         color: t.color ?? '#0F766E',
         property: contract?.property?.name ?? '—',
+        propertyId: contract?.property?.id,
         sub: contract?.unit?.name ?? '—',
         type: (contract?.rental_type ?? 'room') as RentalType,
         rent: contract?.monthly_rent ?? 0,
@@ -101,6 +109,8 @@ export default function TenantsPage() {
         unitId: contract?.unit?.id,
         contractStart: contract?.start_date,
         contractEnd: contract?.end_date,
+        parkingContractId: parkingContract?.id,
+        parkingUnitId: parkingContract?.unit?.id,
       }
     })
 
@@ -288,6 +298,7 @@ export default function TenantsPage() {
           onClose={() => setEditingTenant(null)}
           onUpdated={() => { setEditingTenant(null); load() }}
           tenant={editingTenant}
+          properties={properties}
         />
       )}
 
