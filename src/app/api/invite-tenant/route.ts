@@ -77,22 +77,32 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const userId    = linkBody.user?.id
+    // Handle both response shapes (newer Supabase wraps under .user, older may differ)
+    const userId    = linkBody.user?.id ?? linkBody.data?.user?.id
     const inviteUrl = linkBody.action_link as string
 
     if (!inviteUrl) {
       return NextResponse.json({ error: 'Failed to generate invite link' }, { status: 500 })
     }
 
-    // Set app_metadata with role (cannot be modified by client)
-    if (userId) {
-      await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify({
-          app_metadata: { role: 'tenant', tenant_id: tenantId },
-        }),
-      })
+    if (!userId) {
+      console.error('[invite-tenant] No userId in generate_link response:', JSON.stringify(linkBody))
+      return NextResponse.json({ error: 'Could not retrieve user ID — role not set. Please try again.' }, { status: 500 })
+    }
+
+    // Set app_metadata with tenant role (server-only, cannot be modified by client)
+    const updateRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ app_metadata: { role: 'tenant', tenant_id: tenantId } }),
+    })
+
+    if (!updateRes.ok) {
+      const updateBody = await updateRes.json().catch(() => ({}))
+      console.error('[invite-tenant] app_metadata update failed:', updateRes.status, JSON.stringify(updateBody))
+      return NextResponse.json({
+        error: 'Failed to assign tenant role: ' + (updateBody.msg ?? updateBody.message ?? `HTTP ${updateRes.status}`),
+      }, { status: 500 })
     }
 
     return NextResponse.json({ success: true, inviteLink: inviteUrl })

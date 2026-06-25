@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Home, Eye, EyeOff } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -17,7 +16,6 @@ export default function SetPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [ready, setReady] = useState(false)
   const [error, setError] = useState('')
-  const router = useRouter()
 
   useEffect(() => {
     const hash = window.location.hash.slice(1)
@@ -46,9 +44,14 @@ export default function SetPasswordPage() {
     const { error: updateErr } = await supabase.auth.updateUser({ password })
     if (updateErr) { toast.error(updateErr.message); setLoading(false); return }
 
+    // Refresh session to get a new JWT that includes the latest app_metadata (role: tenant).
+    // Without this, the old JWT in the cookie may not have the role set, causing the
+    // middleware to treat the user as admin and redirect to /dashboard.
+    await supabase.auth.refreshSession()
+
     toast.success('Password set! Taking you to your portal…')
-    router.push('/portal')
-    router.refresh()
+    // Full page load (not client-side nav) ensures the server reads the fresh session cookie.
+    window.location.href = '/portal'
   }
 
   return (
