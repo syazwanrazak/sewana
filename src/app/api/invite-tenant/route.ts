@@ -1,3 +1,4 @@
+import { Resend } from 'resend'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -24,41 +25,87 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Step 1: Send invite via Supabase Auth REST API
-    const inviteRes = await fetch(`${supabaseUrl}/auth/v1/invite`, {
+    // Step 1: Generate invite link without sending email
+    const linkRes = await fetch(`${supabaseUrl}/auth/v1/admin/generate_link`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
+        type: 'invite',
         email,
         data: { name, tenant_id: tenantId },
         redirect_to: `${appUrl}/set-password`,
       }),
     })
 
-    const inviteBody = await inviteRes.json()
-    console.log('[invite-tenant] invite response:', inviteRes.status, JSON.stringify(inviteBody))
+    const linkBody = await linkRes.json()
+    console.log('[invite-tenant] generate_link response:', linkRes.status, JSON.stringify(linkBody))
 
-    if (!inviteRes.ok) {
-      return NextResponse.json({ error: inviteBody.msg ?? inviteBody.message ?? inviteBody.error_description ?? JSON.stringify(inviteBody) }, { status: 400 })
+    if (!linkRes.ok) {
+      return NextResponse.json({
+        error: linkBody.msg ?? linkBody.message ?? linkBody.error_description ?? JSON.stringify(linkBody),
+      }, { status: 400 })
     }
 
-    const userId = inviteBody.id
-    if (!userId) {
-      return NextResponse.json({ error: 'Invite sent but could not read user ID' })
+    const userId    = linkBody.user?.id
+    const inviteUrl = linkBody.action_link as string
+
+    if (!inviteUrl) {
+      return NextResponse.json({ error: 'Failed to generate invite link' }, { status: 500 })
     }
 
-    // Step 2: Set app_metadata with role (cannot be tampered by the client)
-    const updateRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
-      method: 'PUT',
-      headers,
-      body: JSON.stringify({
-        app_metadata: { role: 'tenant', tenant_id: tenantId },
-      }),
+    // Step 2: Set app_metadata (role cannot be tampered by client)
+    if (userId) {
+      await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({
+          app_metadata: { role: 'tenant', tenant_id: tenantId },
+        }),
+      })
+    }
+
+    // Step 3: Send invite email via Resend
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('[invite-tenant] RESEND_API_KEY not set — invite link generated but email not sent:', inviteUrl)
+      return NextResponse.json({ success: true, warning: 'Email not sent — RESEND_API_KEY not configured' })
+    }
+
+    const resend = new Resend(process.env.RESEND_API_KEY)
+    const from   = process.env.RESEND_FROM_EMAIL ?? 'Sewana <onboarding@resend.dev>'
+    const firstName = name.split(' ')[0]
+
+    const { error: emailErr } = await resend.emails.send({
+      from,
+      to: email,
+      subject: `You've been invited to Sewana Tenant Portal`,
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px 24px">
+          <div style="margin-bottom:24px">
+            <span style="background:#0F766E;color:white;font-weight:800;font-size:16px;padding:6px 14px;border-radius:8px;">Sewana</span>
+          </div>
+          <h2 style="margin:0 0 8px;font-size:22px;color:#111">Hi ${firstName}, welcome!</h2>
+          <p style="color:#555;margin:0 0 24px;line-height:1.6">
+            Your landlord has added you to <strong>Sewana</strong> — a property management portal where you can
+            pay rent, track your contract, and submit maintenance requests.
+          </p>
+          <p style="color:#555;margin:0 0 24px;line-height:1.6">
+            Click the button below to set your password and activate your account.
+          </p>
+          <a href="${inviteUrl}"
+            style="display:inline-block;background:#0F766E;color:white;font-weight:700;font-size:15px;
+                   padding:12px 28px;border-radius:10px;text-decoration:none;">
+            Set Password &amp; Enter Portal
+          </a>
+          <p style="color:#999;font-size:12px;margin-top:32px;">
+            This link expires in 24 hours. If you did not expect this email, you can safely ignore it.
+          </p>
+        </div>
+      `,
     })
 
-    if (!updateRes.ok) {
-      const updateBody = await updateRes.json()
-      console.warn('[invite-tenant] app_metadata update failed:', JSON.stringify(updateBody))
+    if (emailErr) {
+      console.error('[invite-tenant] Resend error:', emailErr)
+      return NextResponse.json({ error: 'Invite link created but email failed: ' + emailErr.message }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })
