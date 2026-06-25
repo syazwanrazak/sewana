@@ -1,14 +1,24 @@
 'use client'
 
-import { useState } from 'react'
-import { Upload } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { ExternalLink, Trash2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { PageHeader } from '@/components/layout/Header'
-import { DOCUMENTS, TENANTS, PROPERTIES } from '@/lib/seed'
+import { createClient } from '@/lib/supabase/client'
 import { formatDate } from '@/lib/utils'
-import { DocCategory } from '@/types'
+import { toast } from 'sonner'
 
-const CATEGORIES: (DocCategory | 'All')[] = ['All', 'Owner Contracts', 'Tenant Agreements', 'Receipts', 'Reports']
+interface Doc {
+  id: string
+  name: string
+  category: string
+  file_url: string
+  file_size?: string
+  file_type: string
+  created_at: string
+  property?: { name: string } | null
+  tenant?: { name: string } | null
+}
 
 const DOC_TYPE_COLORS: Record<string, string> = {
   PDF: 'bg-red-600',
@@ -17,35 +27,46 @@ const DOC_TYPE_COLORS: Record<string, string> = {
 }
 
 export default function DocumentsPage() {
-  const [cat, setCat] = useState<DocCategory | 'All'>('All')
+  const [docs, setDocs] = useState<Doc[]>([])
+  const [loading, setLoading] = useState(true)
+  const [cat, setCat] = useState('All')
 
-  const filtered = cat === 'All' ? DOCUMENTS : DOCUMENTS.filter(d => d.category === cat)
-  const enriched = filtered.map(d => ({
-    ...d,
-    tenantName: d.tenant_id ? TENANTS.find(t => t.id === d.tenant_id)?.name : undefined,
-    propertyName: d.property_id ? PROPERTIES.find(p => p.id === d.property_id)?.name : undefined,
-  }))
+  const load = useCallback(async () => {
+    setLoading(true)
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('documents')
+      .select('id, name, category, file_url, file_size, file_type, created_at, property:properties(name), tenant:tenants(name)')
+      .order('created_at', { ascending: false })
+    setDocs((data ?? []) as Doc[])
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const categories = ['All', ...Array.from(new Set(docs.map(d => d.category))).sort()]
+  const filtered = cat === 'All' ? docs : docs.filter(d => d.category === cat)
+
+  async function handleDelete(doc: Doc) {
+    if (!confirm(`Delete "${doc.name}"?\n\nThis removes the record only — the file in storage is not deleted.`)) return
+    const supabase = createClient()
+    const { error } = await supabase.from('documents').delete().eq('id', doc.id)
+    if (error) { toast.error('Delete failed: ' + error.message); return }
+    toast.success('Document removed.')
+    load()
+  }
 
   return (
     <main className="flex-1 overflow-y-auto">
       <div className="max-w-[1320px] mx-auto px-4 py-5 md:px-7 md:py-7">
         <PageHeader
           title="Documents"
-          subtitle="Contracts, agreements, receipts and reports."
+          subtitle={loading ? 'Loading…' : `${docs.length} document${docs.length !== 1 ? 's' : ''} · Upload via property detail or tenant edit`}
         />
-
-        {/* Upload zone */}
-        <div className="border-2 border-dashed border-border rounded-2xl p-7 flex flex-col items-center gap-2 mb-6 bg-muted/30 cursor-pointer hover:border-primary hover:bg-accent/50 transition-all">
-          <div className="w-11 h-11 rounded-xl border border-border bg-card flex items-center justify-center text-primary">
-            <Upload className="w-5 h-5" />
-          </div>
-          <div className="font-semibold text-sm">Drag & drop files, or <span className="text-primary">browse</span></div>
-          <div className="text-xs text-muted-foreground">PDF, JPG, DOC — up to 25 MB. Tag by property, tenant or rental type.</div>
-        </div>
 
         {/* Category filter */}
         <div className="flex gap-2 mb-5 flex-wrap">
-          {CATEGORIES.map(c => (
+          {categories.map(c => (
             <button
               key={c}
               onClick={() => setCat(c)}
@@ -60,35 +81,59 @@ export default function DocumentsPage() {
           ))}
         </div>
 
-        {/* Document grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
-          {enriched.map(d => (
-            <Card
-              key={d.id}
-              className="p-4 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all"
-            >
-              <div className="flex justify-between items-start mb-4">
-                <div className={`w-11 h-11 rounded-xl text-white flex items-center justify-center text-[11px] font-bold flex-shrink-0 ${DOC_TYPE_COLORS[d.file_type] || 'bg-slate-500'}`}>
-                  {d.file_type}
-                </div>
-                <span className="text-[10.5px] font-semibold px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
-                  {d.rental_type_tag || d.category}
-                </span>
-              </div>
-              <div className="font-semibold text-sm leading-snug mb-1.5">{d.name}</div>
-              <div className="text-xs text-muted-foreground">{d.tenantName || d.propertyName || 'General'} · {d.file_size}</div>
-              <div className="mt-3 pt-3 border-t flex justify-between items-center text-xs text-muted-foreground">
-                <span>{d.category}</span>
-                <span>{formatDate(d.created_at)}</span>
-              </div>
-            </Card>
-          ))}
-          {enriched.length === 0 && (
-            <div className="col-span-full py-16 text-center text-muted-foreground text-sm">
-              No documents in this category.
-            </div>
-          )}
-        </div>
+        {loading ? (
+          <div className="py-20 text-center text-muted-foreground text-sm">Loading…</div>
+        ) : filtered.length === 0 ? (
+          <div className="py-20 text-center text-muted-foreground text-sm border-2 border-dashed border-muted rounded-2xl">
+            {docs.length === 0
+              ? 'No documents yet. Upload via a property\'s Documents tab or a tenant\'s Edit panel.'
+              : 'No documents in this category.'}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
+            {filtered.map(d => {
+              const linkedTo = d.tenant?.name ?? d.property?.name ?? 'General'
+              return (
+                <Card key={d.id} className="p-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className={`w-11 h-11 rounded-xl text-white flex items-center justify-center text-[11px] font-bold flex-shrink-0 ${DOC_TYPE_COLORS[d.file_type] || 'bg-slate-500'}`}>
+                      {d.file_type}
+                    </div>
+                    <span className="text-[10.5px] font-semibold px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
+                      {d.category}
+                    </span>
+                  </div>
+
+                  <div className="font-semibold text-sm leading-snug mb-1 truncate">{d.name}</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {linkedTo}{d.file_size ? ` · ${d.file_size}` : ''}
+                  </div>
+
+                  <div className="mt-3 pt-3 border-t flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground">{formatDate(d.created_at)}</span>
+                    <div className="flex items-center gap-1">
+                      <a
+                        href={d.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                      <button
+                        className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors"
+                        onClick={() => handleDelete(d)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+        )}
       </div>
     </main>
   )
