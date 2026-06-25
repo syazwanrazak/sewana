@@ -27,7 +27,7 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
   const isLoginPage    = pathname === '/login'
-  const isAuthRoute    = pathname.startsWith('/auth/')
+  const isAuthRoute    = pathname.startsWith('/auth/') || pathname === '/set-password'
   const isPortalRoute  = pathname.startsWith('/portal')
   const isAdminRoute   = !isLoginPage && !isAuthRoute && !isPortalRoute
 

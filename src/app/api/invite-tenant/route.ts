@@ -20,13 +20,12 @@ export async function POST(request: NextRequest) {
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : 'http://localhost:3000'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+    ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
 
   const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
     data: { name, tenant_id: tenantId },
-    redirectTo: `${appUrl}/auth/callback?next=/portal`,
+    redirectTo: `${appUrl}/set-password`,
   })
 
   if (error) {
