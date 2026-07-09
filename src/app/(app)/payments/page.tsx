@@ -23,12 +23,41 @@ interface PendingReceipt {
 
 interface PaymentRow {
   id: string
+  tenant_id: string
   amount: number
   due_date: string
   status: PaymentStatus
   rental_type: RentalType
   tenant?: { name: string; color: string } | null
   property?: { name: string } | null
+}
+
+interface GroupedPaymentRow {
+  key: string
+  due_date: string
+  amount: number
+  status: PaymentStatus
+  types: RentalType[]
+  tenant?: { name: string; color: string } | null
+  property?: { name: string } | null
+}
+
+const STATUS_RANK: Record<PaymentStatus, number> = { late: 2, pending: 1, paid: 0 }
+
+function groupPayments(payments: PaymentRow[]): GroupedPaymentRow[] {
+  const map = new Map<string, GroupedPaymentRow>()
+  for (const p of payments) {
+    const key = `${p.tenant_id}|${p.due_date}`
+    const g = map.get(key)
+    if (g) {
+      g.amount += p.amount
+      if (!g.types.includes(p.rental_type)) g.types.push(p.rental_type)
+      if (STATUS_RANK[p.status] > STATUS_RANK[g.status]) g.status = p.status
+    } else {
+      map.set(key, { key, due_date: p.due_date, amount: p.amount, status: p.status, types: [p.rental_type], tenant: p.tenant, property: p.property })
+    }
+  }
+  return Array.from(map.values())
 }
 
 function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
@@ -60,7 +89,7 @@ export default function PaymentsPage() {
     const [paymentsRes, receiptsRes] = await Promise.all([
       supabase
         .from('payments')
-        .select('id, amount, due_date, status, rental_type, tenant:tenants(name, color), property:properties(name)')
+        .select('id, tenant_id, amount, due_date, status, rental_type, tenant:tenants(name, color), property:properties(name)')
         .order('due_date', { ascending: false }),
       supabase
         .from('payment_receipts')
@@ -174,6 +203,8 @@ export default function PaymentsPage() {
       else dueDays[day] = p.status
     })
 
+  const groupedPayments = groupPayments(payments).sort((a, b) => b.due_date.localeCompare(a.due_date))
+
   const totalAmount = payments.reduce((s, p) => s + p.amount, 0)
   const lateCount = payments.filter(p => p.status === 'late').length
   const paid = payments.filter(p => p.status === 'paid').reduce((s, p) => s + p.amount, 0)
@@ -254,21 +285,21 @@ export default function PaymentsPage() {
             <div className="px-5 py-4 border-b flex justify-between items-center">
               <span className="font-bold text-[15px]">Payment Ledger</span>
               <span className="text-xs text-muted-foreground">
-                {loading ? '…' : `${payments.length} charge${payments.length !== 1 ? 's' : ''} · ${rm(totalAmount)}`}
+                {loading ? '…' : `${groupedPayments.length} charge${groupedPayments.length !== 1 ? 's' : ''} · ${rm(totalAmount)}`}
               </span>
             </div>
 
             {loading ? (
               <div className="py-16 text-center text-muted-foreground text-sm">Loading…</div>
-            ) : payments.length === 0 ? (
+            ) : groupedPayments.length === 0 ? (
               <div className="py-16 text-center text-muted-foreground text-sm">No payments recorded yet.</div>
             ) : (
               <>
-                <div className="hidden sm:grid grid-cols-[2fr_1.1fr_1fr_1fr] gap-2 px-5 py-3 border-b text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
+                <div className="hidden sm:grid grid-cols-[2fr_1.3fr_1fr_1fr] gap-2 px-5 py-3 border-b text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
                   <span>Tenant</span><span>Type</span><span>Due</span><span className="text-right">Amount</span>
                 </div>
-                {payments.map(p => (
-                  <div key={p.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                {groupedPayments.map(p => (
+                  <div key={p.key} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                     {/* Mobile */}
                     <div className="sm:hidden flex items-center gap-3 px-4 py-3.5">
                       {p.tenant && <Avatar name={p.tenant.name} color={p.tenant.color} size="sm" />}
@@ -278,14 +309,14 @@ export default function PaymentsPage() {
                           <PaymentStatusBadge status={p.status} />
                         </div>
                         <div className="text-xs text-muted-foreground mt-0.5">{p.property?.name || '—'}</div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <RentalTypeBadge type={p.rental_type} />
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          {p.types.map(t => <RentalTypeBadge key={t} type={t} />)}
                           <span className="text-xs font-bold">{rm(p.amount)}</span>
                         </div>
                       </div>
                     </div>
                     {/* Desktop */}
-                    <div className="hidden sm:grid grid-cols-[2fr_1.1fr_1fr_1fr] gap-2 px-5 py-3 items-center">
+                    <div className="hidden sm:grid grid-cols-[2fr_1.3fr_1fr_1fr] gap-2 px-5 py-3 items-center">
                       <div className="flex items-center gap-2.5 min-w-0">
                         {p.tenant && <Avatar name={p.tenant.name} color={p.tenant.color} size="sm" />}
                         <div className="min-w-0">
@@ -293,7 +324,9 @@ export default function PaymentsPage() {
                           <div className="text-xs text-muted-foreground truncate">{p.property?.name || '—'}</div>
                         </div>
                       </div>
-                      <div><RentalTypeBadge type={p.rental_type} /></div>
+                      <div className="flex flex-wrap gap-1">
+                        {p.types.map(t => <RentalTypeBadge key={t} type={t} />)}
+                      </div>
                       <div className="text-sm text-muted-foreground">
                         {new Date(p.due_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: '2-digit' })}
                       </div>
