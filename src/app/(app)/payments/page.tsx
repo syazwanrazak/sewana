@@ -60,8 +60,6 @@ function groupPayments(payments: PaymentRow[]): GroupedPaymentRow[] {
   return Array.from(map.values())
 }
 
-const dotColors: Record<string, string> = { paid: 'bg-green-500', pending: 'bg-amber-400', late: 'bg-red-500' }
-
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<PaymentRow[]>([])
   const [pendingReceipts, setPendingReceipts] = useState<PendingReceipt[]>([])
@@ -167,28 +165,6 @@ export default function PaymentsPage() {
   }
 
   useEffect(() => { load() }, [load])
-
-  const now = new Date()
-  const currentMonth = now.getMonth()
-  const currentYear = now.getFullYear()
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
-  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay()
-  // Adjust so Monday = 0
-  const offset = (firstDayOfMonth + 6) % 7
-
-  // Map day → worst status for current month
-  const dueDays: Record<number, string> = {}
-  payments
-    .filter(p => {
-      const d = new Date(p.due_date)
-      return d.getMonth() === currentMonth && d.getFullYear() === currentYear
-    })
-    .forEach(p => {
-      const day = new Date(p.due_date).getDate()
-      if (dueDays[day] === 'late' || p.status === 'late') dueDays[day] = 'late'
-      else if (dueDays[day] === 'pending' || p.status === 'pending') dueDays[day] = 'pending'
-      else dueDays[day] = p.status
-    })
 
   const groupedPayments = groupPayments(payments).sort((a, b) => b.due_date.localeCompare(a.due_date))
 
@@ -329,41 +305,6 @@ export default function PaymentsPage() {
 
           {/* Right panel */}
           <div className="flex flex-col gap-4">
-            {/* Calendar */}
-            <Card className="p-4">
-              <div className="flex justify-between items-center mb-4">
-                <span className="font-bold text-sm">
-                  {now.toLocaleDateString('en-MY', { month: 'long', year: 'numeric' })}
-                </span>
-                <div className="flex gap-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />Paid</span>
-                  <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" />Due</span>
-                  <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500" />Late</span>
-                </div>
-              </div>
-              <div className="grid grid-cols-7 gap-1 text-[10px] text-muted-foreground font-bold text-center mb-1">
-                {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => <span key={i}>{d}</span>)}
-              </div>
-              <div className="grid grid-cols-7 gap-1">
-                {Array.from({ length: offset }, (_, i) => (
-                  <div key={`empty-${i}`} />
-                ))}
-                {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => {
-                  const st = dueDays[d]
-                  const today = now.getDate()
-                  return (
-                    <div
-                      key={d}
-                      className={`aspect-square rounded-lg flex flex-col items-center justify-center text-[11px] relative border ${d === today ? 'border-primary bg-accent' : 'border-transparent'}`}
-                    >
-                      {d}
-                      {st && <span className={`absolute bottom-0.5 w-1 h-1 rounded-full ${dotColors[st]}`} />}
-                    </div>
-                  )
-                })}
-              </div>
-            </Card>
-
             {/* Summary */}
             <Card className="p-4">
               <div className="font-bold text-sm mb-3">Summary</div>
