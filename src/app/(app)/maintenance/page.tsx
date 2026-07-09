@@ -1,47 +1,49 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, MapPin, User } from 'lucide-react'
+import { MapPin, User, ArrowRight, CheckCircle2, RotateCcw } from 'lucide-react'
 import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/layout/Header'
 import { PriorityBadge } from '@/components/shared/Badge'
 import { formatDate } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
-import { NewTicketModal } from '@/components/maintenance/NewTicketModal'
-import type { MaintenanceStatus, MaintenanceTicket, Property } from '@/types'
+import type { MaintenanceStatus, MaintenanceTicket } from '@/types'
 
 const COLUMNS: { status: MaintenanceStatus; label: string; color: string }[] = [
-  { status: 'open',     label: 'Open',       color: 'bg-red-500' },
-  { status: 'progress', label: 'In Progress', color: 'bg-amber-400' },
-  { status: 'resolved', label: 'Resolved',    color: 'bg-green-500' },
+  { status: 'open',        label: 'Open',        color: 'bg-red-500' },
+  { status: 'in_progress', label: 'In Progress', color: 'bg-amber-400' },
+  { status: 'resolved',    label: 'Resolved',    color: 'bg-green-500' },
 ]
 
 export default function MaintenancePage() {
   const [tickets, setTickets] = useState<MaintenanceTicket[]>([])
-  const [properties, setProperties] = useState<Property[]>([])
   const [loading, setLoading] = useState(true)
-  const [showModal, setShowModal] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     const supabase = createClient()
-    const [ticketsRes, propsRes] = await Promise.all([
-      supabase
-        .from('maintenance_tickets')
-        .select('*, property:properties(id, name, color)')
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('properties')
-        .select('id, name, units(id, name)')
-        .order('name'),
-    ])
-    setTickets(ticketsRes.data ?? [])
-    setProperties((propsRes.data ?? []) as Property[])
+    const { data } = await supabase
+      .from('maintenance_tickets')
+      .select('*, property:properties(id, name, color), tenant:tenants(id, name, color)')
+      .order('created_at', { ascending: false })
+    setTickets(data ?? [])
     setLoading(false)
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  async function advanceStatus(tk: MaintenanceTicket, status: MaintenanceStatus) {
+    const supabase = createClient()
+    await supabase
+      .from('maintenance_tickets')
+      .update({
+        status,
+        updated_at: new Date().toISOString(),
+        resolved_at: status === 'resolved' ? new Date().toISOString() : null,
+      })
+      .eq('id', tk.id)
+    load()
+  }
 
   const getTickets = (status: MaintenanceStatus) => tickets.filter(t => t.status === status)
 
@@ -50,12 +52,7 @@ export default function MaintenancePage() {
       <div className="max-w-[1320px] mx-auto px-4 py-5 md:px-7 md:py-7">
         <PageHeader
           title="Maintenance"
-          subtitle="Ticket board — linked to property, room or parking."
-          action={
-            <Button size="sm" onClick={() => setShowModal(true)}>
-              <Plus className="w-4 h-4 mr-1.5" /> New Request
-            </Button>
-          }
+          subtitle="Issues reported by tenants — linked to property, room or parking."
         />
 
         {loading ? (
@@ -73,13 +70,14 @@ export default function MaintenancePage() {
                   </div>
                   <div className="flex flex-col gap-3">
                     {colTickets.map(tk => {
-                      // Supabase returns the joined property as tk.property
+                      // Supabase returns the joined property/tenant as tk.property / tk.tenant
                       const prop = (tk as any).property
+                      const tenant = (tk as any).tenant
                       const isResolved = tk.status === 'resolved'
                       return (
                         <Card
                           key={tk.id}
-                          className={`p-4 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 ${isResolved ? 'opacity-80 hover:opacity-100' : ''}`}
+                          className={`p-4 transition-all hover:shadow-md ${isResolved ? 'opacity-80 hover:opacity-100' : ''}`}
                         >
                           <div className="flex justify-between items-start gap-2 mb-2">
                             <span className={`font-bold text-[13.5px] leading-snug flex-1 ${isResolved ? 'line-through text-muted-foreground' : ''}`}>
@@ -100,12 +98,38 @@ export default function MaintenancePage() {
                             </span>
                             <span>{formatDate(tk.created_at)}</span>
                           </div>
-                          {tk.assignee && !isResolved && (
+                          {tenant?.name && (
                             <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
                               <User className="w-3 h-3" />
-                              {tk.assignee}
+                              Reported by {tenant.name}
                             </div>
                           )}
+                          <div className="mt-3 pt-3 border-t flex justify-end">
+                            {tk.status === 'open' && (
+                              <button
+                                onClick={() => advanceStatus(tk, 'in_progress')}
+                                className="flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                              >
+                                Start Work <ArrowRight className="w-3 h-3" />
+                              </button>
+                            )}
+                            {tk.status === 'in_progress' && (
+                              <button
+                                onClick={() => advanceStatus(tk, 'resolved')}
+                                className="flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                              >
+                                Mark Resolved <CheckCircle2 className="w-3 h-3" />
+                              </button>
+                            )}
+                            {tk.status === 'resolved' && (
+                              <button
+                                onClick={() => advanceStatus(tk, 'open')}
+                                className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground px-2.5 py-1.5 rounded-lg transition-colors"
+                              >
+                                <RotateCcw className="w-3 h-3" /> Reopen
+                              </button>
+                            )}
+                          </div>
                         </Card>
                       )
                     })}
@@ -121,13 +145,6 @@ export default function MaintenancePage() {
           </div>
         )}
       </div>
-
-      <NewTicketModal
-        open={showModal}
-        onClose={() => setShowModal(false)}
-        onCreated={load}
-        properties={properties}
-      />
     </main>
   )
 }

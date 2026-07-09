@@ -1,4 +1,4 @@
-import { Property, Tenant, Payment, MaintenanceTicket, Document } from '@/types'
+import { Property, Tenant, Payment, Document } from '@/types'
 
 export const PROPERTIES: Property[] = [
   {
@@ -81,15 +81,6 @@ export const PAYMENTS: Payment[] = [
   { id: 'pay5', tenant_id: 't5', property_id: 'p4', amount: 2200, due_date: '2026-06-03', status: 'pending', rental_type: 'full', created_at: '2026-06-01' },
   { id: 'pay6', tenant_id: 't6', property_id: 'p5', amount: 750, due_date: '2026-06-01', paid_date: '2026-06-01', status: 'paid', rental_type: 'room', created_at: '2026-06-01' },
   { id: 'pay7', tenant_id: 't7', property_id: 'p1', amount: 100, due_date: '2026-06-05', status: 'pending', rental_type: 'parking', created_at: '2026-06-01' },
-]
-
-export const TICKETS: MaintenanceTicket[] = [
-  { id: 'tk1', property_id: 'p1', unit_id: 'u1', title: 'Paip sinki bocor', description: 'Air menitik di bawah sinki dapur, kabinet basah.', priority: 'high', status: 'open', assignee: 'Belum ditetapkan', created_at: '2026-06-14' },
-  { id: 'tk2', property_id: 'p3', unit_id: 'u5', title: 'Kunci pintu bilik rosak', description: 'Kunci tidak dapat dimasukkan dengan betul.', priority: 'high', status: 'open', assignee: 'Belum ditetapkan', created_at: '2026-06-13' },
-  { id: 'tk3', property_id: 'p2', title: 'Penghawa dingin bunyi bising', description: 'Bunyi berleceh ketika dihidupkan.', priority: 'med', status: 'progress', assignee: 'Encik Rosli (HVAC)', created_at: '2026-06-10' },
-  { id: 'tk4', property_id: 'p4', title: 'Cermin tingkap retak', description: 'Retak kecil di sudut kiri bawah tingkap bilik tidur.', priority: 'low', status: 'progress', assignee: 'Pekerja M. Azri', created_at: '2026-06-09' },
-  { id: 'tk5', property_id: 'p5', unit_id: 'u18', title: 'Cat dinding mengelupas', description: '', priority: 'med', status: 'resolved', assignee: 'Pekerja M. Azri', created_at: '2026-06-04', resolved_at: '2026-06-07' },
-  { id: 'tk6', property_id: 'p1', unit_id: 'u4', title: 'Bateri pengesan asap habis', description: '', priority: 'high', status: 'resolved', assignee: 'In-house', created_at: '2026-06-02', resolved_at: '2026-06-02' },
 ]
 
 export const DOCUMENTS: Document[] = [

@@ -145,7 +145,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                     <div className="font-bold text-sm mb-3">Maintenance History</div>
                     {(tickets ?? []).slice(0, 3).length ? (tickets ?? []).slice(0, 3).map((tk: any) => (
                       <div key={tk.id} className="flex gap-2 items-start py-2 border-b last:border-0 text-sm">
-                        <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${tk.status === 'resolved' ? 'bg-green-500' : tk.status === 'progress' ? 'bg-amber-400' : 'bg-red-400'}`} />
+                        <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${tk.status === 'resolved' ? 'bg-green-500' : tk.status === 'in_progress' ? 'bg-amber-400' : 'bg-red-400'}`} />
                         <span className="text-muted-foreground">{tk.title} <span className="text-xs">· {formatDate(tk.created_at)}</span></span>
                       </div>
                     )) : <p className="text-sm text-muted-foreground">No records.</p>}
@@ -199,10 +199,10 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                         </div>
                         <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${
                           tk.status === 'resolved' ? 'bg-green-50 text-green-700' :
-                          tk.status === 'progress' ? 'bg-amber-50 text-amber-700' :
+                          tk.status === 'in_progress' ? 'bg-amber-50 text-amber-700' :
                           'bg-red-50 text-red-700'
                         }`}>
-                          {tk.status === 'resolved' ? 'Resolved' : tk.status === 'progress' ? 'In Progress' : 'Open'}
+                          {tk.status === 'resolved' ? 'Resolved' : tk.status === 'in_progress' ? 'In Progress' : 'Open'}
                         </span>
                       </div>
                     ))}

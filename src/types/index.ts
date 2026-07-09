@@ -1,8 +1,8 @@
 export type RentalType = 'full' | 'room' | 'parking'
 export type UnitType = 'full' | 'room' | 'parking'
 export type PaymentStatus = 'paid' | 'pending' | 'late'
-export type MaintenanceStatus = 'open' | 'progress' | 'resolved'
-export type MaintenancePriority = 'high' | 'med' | 'low'
+export type MaintenanceStatus = 'open' | 'in_progress' | 'resolved'
+export type MaintenancePriority = 'low' | 'normal' | 'high' | 'urgent'
 export type ContractStatus = 'active' | 'expired' | 'terminated'
 export type DocCategory = 'Owner Contracts' | 'Tenant Agreements' | 'Receipts' | 'Reports'
 
@@ -87,17 +87,22 @@ export interface Payment {
 
 export interface MaintenanceTicket {
   id: string
+  tenant_id?: string
   property_id: string
   unit_id?: string
   title: string
   description?: string
+  category?: string
   priority: MaintenancePriority
   status: MaintenanceStatus
   assignee?: string
+  photo_url?: string
   created_at: string
+  updated_at?: string
   resolved_at?: string
   property?: Property
   unit?: Unit
+  tenant?: Tenant
 }
 
 export interface Document {

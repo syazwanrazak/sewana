@@ -29,9 +29,10 @@ export const PAYMENT_STATUS_META: Record<PaymentStatus, { label: string; bg: str
 }
 
 export const PRIORITY_META: Record<MaintenancePriority, { label: string; bg: string; text: string }> = {
-  high: { label: 'High',   bg: 'bg-red-100',    text: 'text-red-700' },
-  med:  { label: 'Medium', bg: 'bg-amber-100',  text: 'text-amber-700' },
-  low:  { label: 'Low',    bg: 'bg-slate-100',  text: 'text-slate-600' },
+  urgent: { label: 'Urgent', bg: 'bg-red-100',    text: 'text-red-700' },
+  high:   { label: 'High',   bg: 'bg-orange-100', text: 'text-orange-700' },
+  normal: { label: 'Normal', bg: 'bg-amber-100',  text: 'text-amber-700' },
+  low:    { label: 'Low',    bg: 'bg-slate-100',  text: 'text-slate-600' },
 }
 
 const AVATAR_COLORS = [
