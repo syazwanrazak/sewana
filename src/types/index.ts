@@ -61,6 +61,7 @@ export interface Contract {
   deposit: number
   start_date: string
   end_date: string
+  due_day: number
   status: ContractStatus
   created_at: string
   tenant?: Tenant

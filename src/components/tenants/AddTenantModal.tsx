@@ -47,7 +47,7 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
   const [form, setForm] = useState({
     name: '', email: '', phone: '', password: '',
     propertyId: '', rentalType: 'room' as RentalType, unitId: '', parkingUnitId: '',
-    startDate: today(), endDate: nextYear(),
+    startDate: today(), endDate: nextYear(), dueDay: '1',
   })
   const [loading, setLoading] = useState(false)
   const [credentials, setCredentials] = useState<{ email: string; password: string; name: string } | null>(null)
@@ -121,6 +121,7 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
 
     // 2. Create a contract
     const selectedUnit = subOptions.find(u => u.id === form.unitId)
+    const dueDay = Math.min(31, Math.max(1, Number(form.dueDay) || 1))
     const { error: contractErr } = await supabase.from('contracts').insert({
       tenant_id: tenant.id,
       property_id: form.propertyId,
@@ -130,6 +131,7 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
       deposit: 0,
       start_date: form.startDate,
       end_date: form.endDate,
+      due_day: dueDay,
       status: 'active',
     })
 
@@ -156,6 +158,7 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
         deposit: 0,
         start_date: form.startDate,
         end_date: form.endDate,
+        due_day: dueDay,
         status: 'active',
       })
       await supabase.from('units').update({ is_occupied: true }).eq('id', form.parkingUnitId)
@@ -185,7 +188,7 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
     const password = form.password.trim()
 
     const resetForm = () => {
-      setForm({ name: '', email: '', phone: '', password: '', propertyId: '', rentalType: 'room', unitId: '', parkingUnitId: '', startDate: today(), endDate: nextYear() })
+      setForm({ name: '', email: '', phone: '', password: '', propertyId: '', rentalType: 'room', unitId: '', parkingUnitId: '', startDate: today(), endDate: nextYear(), dueDay: '1' })
       setDocQueue([])
       setPendingFile(null)
       setPendingCategory('')
@@ -440,6 +443,19 @@ export function AddTenantModal({ open, onClose, onCreated, properties }: Props) 
                   onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))}
                 />
               </div>
+            </div>
+            <div className="mt-3">
+              <Label className="mb-1.5 block">
+                Rent Due Day <span className="text-muted-foreground text-xs font-normal">(day of month, 1–31)</span>
+              </Label>
+              <Input
+                type="number"
+                min="1"
+                max="31"
+                value={form.dueDay}
+                onChange={e => setForm(f => ({ ...f, dueDay: e.target.value }))}
+                className="max-w-[120px]"
+              />
             </div>
           </div>
 

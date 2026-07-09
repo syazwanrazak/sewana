@@ -22,6 +22,7 @@ interface TenantBasic {
   unitId?: string
   contractStart?: string
   contractEnd?: string
+  dueDay?: number
   parkingContractId?: string
   parkingUnitId?: string
 }
@@ -38,7 +39,7 @@ export function EditTenantModal({ open, onClose, onUpdated, tenant, properties }
   const [form, setForm] = useState({
     name: '', email: '', phone: '',
     propertyId: '', unitId: '', parkingUnitId: '',
-    contractStart: '', contractEnd: '',
+    contractStart: '', contractEnd: '', dueDay: '1',
   })
   const [loading, setLoading] = useState(false)
 
@@ -53,6 +54,7 @@ export function EditTenantModal({ open, onClose, onUpdated, tenant, properties }
         parkingUnitId: tenant.parkingUnitId ?? '',
         contractStart: tenant.contractStart?.slice(0, 10) ?? '',
         contractEnd: tenant.contractEnd?.slice(0, 10) ?? '',
+        dueDay: String(tenant.dueDay ?? 1),
       })
     }
   }, [open, tenant])
@@ -90,6 +92,7 @@ export function EditTenantModal({ open, onClose, onUpdated, tenant, properties }
     if (tenantErr) { toast.error('Failed to update: ' + tenantErr.message); setLoading(false); return }
 
     // 2. Update contract dates + unit if changed
+    const dueDay = Math.min(31, Math.max(1, Number(form.dueDay) || 1))
     if (tenant.contractId) {
       const unitChanged = form.unitId !== (tenant.unitId ?? '')
 
@@ -97,6 +100,7 @@ export function EditTenantModal({ open, onClose, onUpdated, tenant, properties }
         start_date: form.contractStart || undefined,
         end_date: form.contractEnd || undefined,
         unit_id: form.unitId || null,
+        due_day: dueDay,
       }).eq('id', tenant.contractId)
 
       if (unitChanged) {
@@ -130,6 +134,7 @@ export function EditTenantModal({ open, onClose, onUpdated, tenant, properties }
           deposit: 0,
           start_date: form.contractStart || new Date().toISOString().slice(0, 10),
           end_date: form.contractEnd || '',
+          due_day: dueDay,
           status: 'active',
         })
         await supabase.from('units').update({ is_occupied: true }).eq('id', nextParking)
@@ -261,6 +266,19 @@ export function EditTenantModal({ open, onClose, onUpdated, tenant, properties }
                   <Label className="mb-1.5 block">End Date</Label>
                   <Input type="date" value={form.contractEnd} onChange={set('contractEnd')} />
                 </div>
+              </div>
+              <div className="mt-3">
+                <Label className="mb-1.5 block">
+                  Rent Due Day <span className="text-muted-foreground text-xs font-normal">(day of month, 1–31)</span>
+                </Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="31"
+                  value={form.dueDay}
+                  onChange={set('dueDay')}
+                  className="max-w-[120px]"
+                />
               </div>
             </div>
           )}

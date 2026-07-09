@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/layout/Header'
 import { Avatar } from '@/components/shared/Avatar'
 import { PaymentStatusBadge, RentalTypeBadge } from '@/components/shared/Badge'
 import { createClient } from '@/lib/supabase/client'
+import { ensureLedgerCurrent } from '@/lib/ledger'
 import { rm } from '@/lib/utils'
 import { toast } from 'sonner'
 import { ExternalLink, CheckCircle, XCircle } from 'lucide-react'
@@ -55,6 +56,7 @@ export default function PaymentsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     const supabase = createClient()
+    await ensureLedgerCurrent(supabase)
     const [paymentsRes, receiptsRes] = await Promise.all([
       supabase
         .from('payments')
@@ -99,17 +101,20 @@ export default function PaymentsPage() {
       } else {
         const { data: contracts } = await supabase
           .from('contracts')
-          .select('id, property_id, rental_type')
+          .select('id, property_id, rental_type, due_day')
           .eq('tenant_id', r.tenant.id)
           .eq('status', 'active')
         const contract = contracts?.find(c => c.rental_type !== 'parking') ?? contracts?.[0]
         if (contract) {
+          const daysInMonth = new Date(y, m, 0).getDate()
+          const day = Math.min(contract.due_day ?? 1, daysInMonth)
+          const dueDate = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`
           await supabase.from('payments').insert({
             contract_id: contract.id,
             tenant_id: r.tenant.id,
             property_id: contract.property_id,
             amount: r.amount,
-            due_date: rangeStart,
+            due_date: dueDate,
             paid_date: paidDate,
             status: 'paid',
             rental_type: contract.rental_type,

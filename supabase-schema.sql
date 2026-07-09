@@ -69,6 +69,7 @@ create table public.contracts (
   deposit       numeric(10,2) default 0,
   start_date    date not null,
   end_date      date not null,
+  due_day       smallint not null default 1 check (due_day between 1 and 31),
   status        text default 'active',  -- 'active' | 'expired' | 'terminated'
   created_at    timestamptz default now()
 );

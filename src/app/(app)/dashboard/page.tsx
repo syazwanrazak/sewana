@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/layout/Header'
 import { Avatar } from '@/components/shared/Avatar'
 import { PaymentStatusBadge } from '@/components/shared/Badge'
 import { createClient } from '@/lib/supabase/server'
+import { ensureLedgerCurrent } from '@/lib/ledger'
 import { propertyRevenue, propertyOccupancy } from '@/lib/seed'
 import { rm } from '@/lib/utils'
 import Link from 'next/link'
@@ -28,6 +29,7 @@ function StatCard({ icon: Icon, iconBg, label, value, sub, subColor }: {
 
 export default async function DashboardPage() {
   const supabase = await createClient()
+  await ensureLedgerCurrent(supabase)
 
   // Fetch all data in parallel for performance
   const [propertiesRes, tenantsRes, paymentsRes] = await Promise.all([

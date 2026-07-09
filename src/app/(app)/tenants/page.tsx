@@ -45,6 +45,7 @@ interface TenantRow {
   unitId?: string
   contractStart?: string
   contractEnd?: string
+  dueDay?: number
   parkingContractId?: string
   parkingUnitId?: string
   parkingUnitName?: string
@@ -73,7 +74,7 @@ export default function TenantsPage() {
         .select(`
           id, name, email, phone, color, created_at,
           contracts(
-            id, rental_type, monthly_rent, status, start_date, end_date,
+            id, rental_type, monthly_rent, status, start_date, end_date, due_day,
             property:properties(id, name),
             unit:units(id, name),
             payments(id, status, due_date)
@@ -115,6 +116,7 @@ export default function TenantsPage() {
         unitId: contract?.unit?.id,
         contractStart: contract?.start_date,
         contractEnd: contract?.end_date,
+        dueDay: contract?.due_day,
         parkingContractId: parkingContract?.id,
         parkingUnitId: parkingContract?.unit?.id,
         parkingUnitName: parkingContract?.unit?.name,
