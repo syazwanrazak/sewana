@@ -60,12 +60,17 @@ function groupPayments(payments: PaymentRow[]): GroupedPaymentRow[] {
   return Array.from(map.values())
 }
 
+const monthKey = (dateStr: string) => dateStr.slice(0, 7)
+const currentMonthKey = new Date().toISOString().slice(0, 7)
+const monthLabel = (key: string) => new Date(`${key}-01`).toLocaleDateString('en-MY', { month: 'short', year: 'numeric' })
+
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<PaymentRow[]>([])
   const [pendingReceipts, setPendingReceipts] = useState<PendingReceipt[]>([])
   const [loading, setLoading] = useState(true)
   const [rejecting, setRejecting] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthKey)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -166,12 +171,14 @@ export default function PaymentsPage() {
 
   useEffect(() => { load() }, [load])
 
-  const groupedPayments = groupPayments(payments).sort((a, b) => b.due_date.localeCompare(a.due_date))
+  const months = Array.from(new Set([currentMonthKey, ...payments.map(p => monthKey(p.due_date))])).sort((a, b) => b.localeCompare(a))
+  const monthPayments = payments.filter(p => monthKey(p.due_date) === selectedMonth)
+  const groupedPayments = groupPayments(monthPayments).sort((a, b) => b.due_date.localeCompare(a.due_date))
 
-  const totalAmount = payments.reduce((s, p) => s + p.amount, 0)
-  const paid = payments.filter(p => p.status === 'paid').reduce((s, p) => s + p.amount, 0)
-  const pending = payments.filter(p => p.status === 'pending').reduce((s, p) => s + p.amount, 0)
-  const overdue = payments.filter(p => p.status === 'late').reduce((s, p) => s + p.amount, 0)
+  const totalAmount = monthPayments.reduce((s, p) => s + p.amount, 0)
+  const paid = monthPayments.filter(p => p.status === 'paid').reduce((s, p) => s + p.amount, 0)
+  const pending = monthPayments.filter(p => p.status === 'pending').reduce((s, p) => s + p.amount, 0)
+  const overdue = monthPayments.filter(p => p.status === 'late').reduce((s, p) => s + p.amount, 0)
 
   return (
     <main className="flex-1 overflow-y-auto">
@@ -251,10 +258,26 @@ export default function PaymentsPage() {
               </span>
             </div>
 
+            <div className="flex gap-2 px-5 pt-3 pb-1 overflow-x-auto">
+              {months.map(m => (
+                <button
+                  key={m}
+                  onClick={() => setSelectedMonth(m)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border whitespace-nowrap transition-all ${
+                    selectedMonth === m
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-transparent text-muted-foreground border-border hover:border-primary/50'
+                  }`}
+                >
+                  {monthLabel(m)}
+                </button>
+              ))}
+            </div>
+
             {loading ? (
               <div className="py-16 text-center text-muted-foreground text-sm">Loading…</div>
             ) : groupedPayments.length === 0 ? (
-              <div className="py-16 text-center text-muted-foreground text-sm">No payments recorded yet.</div>
+              <div className="py-16 text-center text-muted-foreground text-sm">No payments for {monthLabel(selectedMonth)}.</div>
             ) : (
               <>
                 <div className="hidden sm:grid grid-cols-[2fr_1.3fr_1fr_1fr] gap-2 px-5 py-3 border-b text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
@@ -270,7 +293,9 @@ export default function PaymentsPage() {
                           <span className="font-semibold text-sm truncate">{p.tenant?.name.split(' ')[0] || '—'}</span>
                           <PaymentStatusBadge status={p.status} />
                         </div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{p.property?.name || '—'}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {p.property?.name || '—'} · Due {new Date(p.due_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: '2-digit' })}
+                        </div>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           {p.types.map(t => <RentalTypeBadge key={t} type={t} />)}
                           <span className="text-xs font-bold">{rm(p.amount)}</span>
