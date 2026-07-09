@@ -74,6 +74,50 @@ export default function PaymentsPage() {
   async function approveReceipt(r: PendingReceipt) {
     const supabase = createClient()
     await supabase.from('payment_receipts').update({ status: 'approved', reviewed_at: new Date().toISOString() }).eq('id', r.id)
+
+    // Reflect the approval in the payment ledger (payments table is separate from payment_receipts)
+    if (r.tenant?.id) {
+      const [y, m] = r.pay_month.slice(0, 7).split('-').map(Number)
+      const rangeStart = `${y}-${String(m).padStart(2, '0')}-01`
+      const nextY = m === 12 ? y + 1 : y
+      const nextM = m === 12 ? 1 : m + 1
+      const rangeEnd = `${nextY}-${String(nextM).padStart(2, '0')}-01`
+      const paidDate = new Date().toISOString().slice(0, 10)
+
+      const { data: existing } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('tenant_id', r.tenant.id)
+        .gte('due_date', rangeStart)
+        .lt('due_date', rangeEnd)
+        .neq('status', 'paid')
+        .limit(1)
+        .maybeSingle()
+
+      if (existing) {
+        await supabase.from('payments').update({ status: 'paid', paid_date: paidDate }).eq('id', existing.id)
+      } else {
+        const { data: contracts } = await supabase
+          .from('contracts')
+          .select('id, property_id, rental_type')
+          .eq('tenant_id', r.tenant.id)
+          .eq('status', 'active')
+        const contract = contracts?.find(c => c.rental_type !== 'parking') ?? contracts?.[0]
+        if (contract) {
+          await supabase.from('payments').insert({
+            contract_id: contract.id,
+            tenant_id: r.tenant.id,
+            property_id: contract.property_id,
+            amount: r.amount,
+            due_date: rangeStart,
+            paid_date: paidDate,
+            status: 'paid',
+            rental_type: contract.rental_type,
+          })
+        }
+      }
+    }
+
     if (r.tenant?.email) {
       fetch('/api/send-email', {
         method: 'POST',
