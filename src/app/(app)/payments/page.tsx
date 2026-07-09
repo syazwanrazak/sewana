@@ -60,25 +60,12 @@ function groupPayments(payments: PaymentRow[]): GroupedPaymentRow[] {
   return Array.from(map.values())
 }
 
-function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
-  return (
-    <div className="flex items-center justify-between py-2.5 cursor-pointer" onClick={onClick}>
-      <span className="text-sm font-semibold">{label}</span>
-      <div className={`w-9 h-5 rounded-full p-0.5 transition-colors ${on ? 'bg-primary' : 'bg-muted'}`}>
-        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${on ? 'translate-x-4' : 'translate-x-0'}`} />
-      </div>
-    </div>
-  )
-}
-
 const dotColors: Record<string, string> = { paid: 'bg-green-500', pending: 'bg-amber-400', late: 'bg-red-500' }
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<PaymentRow[]>([])
   const [pendingReceipts, setPendingReceipts] = useState<PendingReceipt[]>([])
   const [loading, setLoading] = useState(true)
-  const [emailOn, setEmailOn] = useState(true)
-  const [waOn, setWaOn] = useState(true)
   const [rejecting, setRejecting] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
 
@@ -206,7 +193,6 @@ export default function PaymentsPage() {
   const groupedPayments = groupPayments(payments).sort((a, b) => b.due_date.localeCompare(a.due_date))
 
   const totalAmount = payments.reduce((s, p) => s + p.amount, 0)
-  const lateCount = payments.filter(p => p.status === 'late').length
   const paid = payments.filter(p => p.status === 'paid').reduce((s, p) => s + p.amount, 0)
   const pending = payments.filter(p => p.status === 'pending').reduce((s, p) => s + p.amount, 0)
   const overdue = payments.filter(p => p.status === 'late').reduce((s, p) => s + p.amount, 0)
@@ -376,20 +362,6 @@ export default function PaymentsPage() {
                   )
                 })}
               </div>
-            </Card>
-
-            {/* Reminder automation */}
-            <Card className="p-4">
-              <div className="font-bold text-sm mb-1">Reminder Automation</div>
-              <div className="text-xs text-muted-foreground mb-4">Sent 3 days before due date.</div>
-              <Toggle on={emailOn} onClick={() => setEmailOn(e => !e)} label="📧 Email Reminders" />
-              <Toggle on={waOn} onClick={() => setWaOn(w => !w)} label="💬 WhatsApp Reminders" />
-              {lateCount > 0 && (
-                <div className="mt-3 p-3 bg-accent rounded-xl flex gap-2 text-xs text-primary">
-                  <span>✦</span>
-                  <span><b>Suggested:</b> Send reminder to {lateCount} overdue tenant{lateCount !== 1 ? 's' : ''} now.</span>
-                </div>
-              )}
             </Card>
 
             {/* Summary */}
