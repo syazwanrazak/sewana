@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { Plus, Wrench } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Plus, Wrench, Upload, FileVideo, X, ExternalLink } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,6 +21,9 @@ interface Ticket {
   priority: string
   created_at: string
   updated_at: string
+  attachment_url: string | null
+  attachment_name: string | null
+  attachment_type: 'image' | 'video' | null
 }
 
 const CATEGORIES = ['Plumbing', 'Electrical', 'Air Conditioning', 'Appliances', 'Structural', 'Pest Control', 'General']
@@ -48,6 +51,8 @@ export default function PortalMaintenancePage() {
   const [loading, setLoading]   = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving]     = useState(false)
+  const [file, setFile]         = useState<File | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
   const [form, setForm]         = useState({
     title: '', description: '', category: 'General', priority: 'normal',
   })
@@ -70,7 +75,7 @@ export default function PortalMaintenancePage() {
     const [ticketsRes, contractRes] = await Promise.all([
       supabase
         .from('maintenance_tickets')
-        .select('id, title, description, category, status, priority, created_at, updated_at')
+        .select('id, title, description, category, status, priority, created_at, updated_at, attachment_url, attachment_name, attachment_type')
         .eq('tenant_id', tid)
         .order('created_at', { ascending: false }),
       supabase
@@ -97,6 +102,20 @@ export default function PortalMaintenancePage() {
     setSaving(true)
     const supabase = createClient()
 
+    let attachment_url: string | null = null
+    let attachment_name: string | null = null
+    let attachment_type: 'image' | 'video' | null = null
+
+    if (file) {
+      const path = `${tenantId}/${Date.now()}_${file.name}`
+      const { error: storageErr } = await supabase.storage.from('maintenance-media').upload(path, file)
+      if (storageErr) { toast.error('Attachment upload failed: ' + storageErr.message); setSaving(false); return }
+      const { data: { publicUrl } } = supabase.storage.from('maintenance-media').getPublicUrl(path)
+      attachment_url = publicUrl
+      attachment_name = file.name
+      attachment_type = file.type.startsWith('video/') ? 'video' : 'image'
+    }
+
     const { error } = await supabase.from('maintenance_tickets').insert({
       tenant_id: tenantId,
       property_id: propId,
@@ -104,6 +123,9 @@ export default function PortalMaintenancePage() {
       description: form.description.trim() || null,
       category: form.category,
       priority: form.priority,
+      attachment_url,
+      attachment_name,
+      attachment_type,
     })
 
     if (error) { toast.error('Failed to submit: ' + error.message); setSaving(false); return }
@@ -111,6 +133,8 @@ export default function PortalMaintenancePage() {
     toast.success('Request submitted! Your landlord has been notified.')
     setShowForm(false)
     setForm({ title: '', description: '', category: 'General', priority: 'normal' })
+    setFile(null)
+    if (fileRef.current) fileRef.current.value = ''
     setSaving(false)
     load()
   }
@@ -176,8 +200,39 @@ export default function PortalMaintenancePage() {
                 />
               </div>
 
+              <div>
+                <Label className="mb-1.5 block text-xs">
+                  Photo or Video <span className="text-muted-foreground font-normal">(optional)</span>
+                </Label>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={e => setFile(e.target.files?.[0] ?? null)}
+                  className="sr-only"
+                />
+                {file ? (
+                  <div className="flex items-center gap-2 border rounded-lg px-3 py-2 bg-muted/40">
+                    {file.type.startsWith('video/') ? <FileVideo className="w-4 h-4 text-muted-foreground flex-shrink-0" /> : <Upload className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
+                    <span className="flex-1 text-sm truncate">{file.name}</span>
+                    <button type="button" onClick={() => { setFile(null); if (fileRef.current) fileRef.current.value = '' }} className="text-muted-foreground hover:text-foreground">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    className="w-full flex items-center gap-2 border border-dashed rounded-lg px-3 py-2.5 text-sm text-muted-foreground hover:border-primary hover:text-foreground transition-colors"
+                  >
+                    <Upload className="w-4 h-4 flex-shrink-0" />
+                    Attach a photo or short video…
+                  </button>
+                )}
+              </div>
+
               <div className="flex gap-2 mt-1">
-                <Button type="button" variant="outline" className="flex-1" onClick={() => setShowForm(false)}>
+                <Button type="button" variant="outline" className="flex-1" onClick={() => { setShowForm(false); setFile(null); if (fileRef.current) fileRef.current.value = '' }}>
                   Cancel
                 </Button>
                 <Button type="submit" className="flex-[1.5]" disabled={saving}>
@@ -215,6 +270,17 @@ export default function PortalMaintenancePage() {
                     {STATUS_LABELS[tk.status] ?? tk.status}
                   </span>
                 </div>
+                {tk.attachment_url && (
+                  <a
+                    href={tk.attachment_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 flex items-center gap-2 text-xs text-primary hover:underline"
+                  >
+                    {tk.attachment_type === 'video' ? <FileVideo className="w-3.5 h-3.5" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                    View {tk.attachment_type === 'video' ? 'video' : 'photo'}
+                  </a>
+                )}
               </Card>
             ))}
           </div>

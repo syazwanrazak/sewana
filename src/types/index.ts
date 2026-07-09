@@ -96,7 +96,9 @@ export interface MaintenanceTicket {
   priority: MaintenancePriority
   status: MaintenanceStatus
   assignee?: string
-  photo_url?: string
+  attachment_url?: string
+  attachment_name?: string
+  attachment_type?: 'image' | 'video'
   created_at: string
   updated_at?: string
   resolved_at?: string

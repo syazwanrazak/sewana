@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { MapPin, User, ArrowRight, CheckCircle2, RotateCcw } from 'lucide-react'
+import { MapPin, User, ArrowRight, CheckCircle2, RotateCcw, FileVideo } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { PageHeader } from '@/components/layout/Header'
 import { PriorityBadge } from '@/components/shared/Badge'
@@ -90,6 +90,23 @@ export default function MaintenancePage() {
                           </div>
                           {tk.description && !isResolved && (
                             <div className="text-xs text-muted-foreground leading-relaxed mb-3">{tk.description}</div>
+                          )}
+                          {tk.attachment_url && (
+                            <a
+                              href={tk.attachment_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block mb-3 rounded-lg overflow-hidden border bg-muted/30"
+                            >
+                              {tk.attachment_type === 'video' ? (
+                                <div className="flex items-center gap-2 px-3 py-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors">
+                                  <FileVideo className="w-4 h-4" /> View video attachment
+                                </div>
+                              ) : (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={tk.attachment_url} alt="Attachment" className="w-full max-h-40 object-cover" />
+                              )}
+                            </a>
                           )}
                           <div className="flex justify-between items-center text-xs text-muted-foreground">
                             <span className="flex items-center gap-1">
