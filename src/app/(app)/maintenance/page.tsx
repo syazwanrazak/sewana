@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { MapPin, User, ArrowRight, CheckCircle2, RotateCcw, FileVideo } from 'lucide-react'
+import { MapPin, User, ArrowRight, CheckCircle2, RotateCcw, FileVideo, MessageSquarePlus } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { PageHeader } from '@/components/layout/Header'
 import { PriorityBadge } from '@/components/shared/Badge'
 import { formatDate } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
-import type { MaintenanceStatus, MaintenanceTicket } from '@/types'
+import { toast } from 'sonner'
+import type { MaintenanceStatus, MaintenanceTicket, MaintenanceTicketUpdate } from '@/types'
 
 const COLUMNS: { status: MaintenanceStatus; label: string; color: string }[] = [
   { status: 'open',        label: 'Open',        color: 'bg-red-500' },
@@ -15,16 +16,24 @@ const COLUMNS: { status: MaintenanceStatus; label: string; color: string }[] = [
   { status: 'resolved',    label: 'Resolved',    color: 'bg-green-500' },
 ]
 
+// null nextStatus = log a remark without changing status (only valid while in_progress)
+interface RemarkTarget {
+  ticketId: string
+  nextStatus: MaintenanceStatus | null
+}
+
 export default function MaintenancePage() {
   const [tickets, setTickets] = useState<MaintenanceTicket[]>([])
   const [loading, setLoading] = useState(true)
+  const [remarking, setRemarking] = useState<RemarkTarget | null>(null)
+  const [remarkText, setRemarkText] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
     const supabase = createClient()
     const { data } = await supabase
       .from('maintenance_tickets')
-      .select('*, property:properties(id, name, color), tenant:tenants(id, name, color)')
+      .select('*, property:properties(id, name, color), tenant:tenants(id, name, color), updates:maintenance_ticket_updates(id, note, status, created_at)')
       .order('created_at', { ascending: false })
     setTickets(data ?? [])
     setLoading(false)
@@ -32,16 +41,40 @@ export default function MaintenancePage() {
 
   useEffect(() => { load() }, [load])
 
-  async function advanceStatus(tk: MaintenanceTicket, status: MaintenanceStatus) {
+  async function reopen(tk: MaintenanceTicket) {
     const supabase = createClient()
     await supabase
       .from('maintenance_tickets')
-      .update({
-        status,
-        updated_at: new Date().toISOString(),
-        resolved_at: status === 'resolved' ? new Date().toISOString() : null,
-      })
+      .update({ status: 'open', updated_at: new Date().toISOString(), resolved_at: null })
       .eq('id', tk.id)
+    load()
+  }
+
+  async function submitRemark() {
+    if (!remarking) return
+    const note = remarkText.trim()
+    if (!remarking.nextStatus && !note) { toast.error('Enter a remark.'); return }
+
+    const supabase = createClient()
+    if (note) {
+      await supabase.from('maintenance_ticket_updates').insert({
+        ticket_id: remarking.ticketId,
+        note,
+        status: remarking.nextStatus,
+      })
+    }
+    if (remarking.nextStatus) {
+      await supabase
+        .from('maintenance_tickets')
+        .update({
+          status: remarking.nextStatus,
+          updated_at: new Date().toISOString(),
+          resolved_at: remarking.nextStatus === 'resolved' ? new Date().toISOString() : null,
+        })
+        .eq('id', remarking.ticketId)
+    }
+    setRemarking(null)
+    setRemarkText('')
     load()
   }
 
@@ -70,10 +103,13 @@ export default function MaintenancePage() {
                   </div>
                   <div className="flex flex-col gap-3">
                     {colTickets.map(tk => {
-                      // Supabase returns the joined property/tenant as tk.property / tk.tenant
+                      // Supabase returns the joined property/tenant/updates as tk.property / tk.tenant / tk.updates
                       const prop = (tk as any).property
                       const tenant = (tk as any).tenant
+                      const updates = ((tk as any).updates ?? []) as MaintenanceTicketUpdate[]
+                      const sortedUpdates = [...updates].sort((a, b) => a.created_at.localeCompare(b.created_at))
                       const isResolved = tk.status === 'resolved'
+                      const isRemarkingHere = remarking?.ticketId === tk.id
                       return (
                         <Card
                           key={tk.id}
@@ -121,30 +157,78 @@ export default function MaintenancePage() {
                               Reported by {tenant.name}
                             </div>
                           )}
-                          <div className="mt-3 pt-3 border-t flex justify-end">
-                            {tk.status === 'open' && (
-                              <button
-                                onClick={() => advanceStatus(tk, 'in_progress')}
-                                className="flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 px-2.5 py-1.5 rounded-lg transition-colors"
-                              >
-                                Start Work <ArrowRight className="w-3 h-3" />
-                              </button>
-                            )}
-                            {tk.status === 'in_progress' && (
-                              <button
-                                onClick={() => advanceStatus(tk, 'resolved')}
-                                className="flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-lg transition-colors"
-                              >
-                                Mark Resolved <CheckCircle2 className="w-3 h-3" />
-                              </button>
-                            )}
-                            {tk.status === 'resolved' && (
-                              <button
-                                onClick={() => advanceStatus(tk, 'open')}
-                                className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground px-2.5 py-1.5 rounded-lg transition-colors"
-                              >
-                                <RotateCcw className="w-3 h-3" /> Reopen
-                              </button>
+
+                          {sortedUpdates.length > 0 && (
+                            <div className="mt-3 pt-3 border-t flex flex-col gap-2">
+                              {sortedUpdates.map(u => (
+                                <div key={u.id} className="flex gap-2 text-xs">
+                                  <MessageSquarePlus className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                                  <div className="min-w-0">
+                                    <div className="text-foreground leading-relaxed">{u.note}</div>
+                                    <div className="text-muted-foreground mt-0.5">{formatDate(u.created_at)}</div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          <div className="mt-3 pt-3 border-t">
+                            {isRemarkingHere ? (
+                              <div className="flex flex-col gap-2">
+                                <textarea
+                                  autoFocus
+                                  rows={2}
+                                  value={remarkText}
+                                  onChange={e => setRemarkText(e.target.value)}
+                                  placeholder={remarking?.nextStatus ? 'Remark (optional)…' : 'e.g. Contacted plumber, arriving Friday…'}
+                                  className="w-full border rounded-lg px-2.5 py-1.5 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-ring bg-background"
+                                />
+                                <div className="flex justify-end gap-2">
+                                  <button
+                                    onClick={() => { setRemarking(null); setRemarkText('') }}
+                                    className="text-xs text-muted-foreground hover:underline"
+                                  >Cancel</button>
+                                  <button
+                                    onClick={submitRemark}
+                                    className="text-xs font-semibold text-primary hover:underline"
+                                  >Save</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex justify-end gap-2">
+                                {tk.status === 'open' && (
+                                  <button
+                                    onClick={() => { setRemarking({ ticketId: tk.id, nextStatus: 'in_progress' }); setRemarkText('') }}
+                                    className="flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                                  >
+                                    Start Work <ArrowRight className="w-3 h-3" />
+                                  </button>
+                                )}
+                                {tk.status === 'in_progress' && (
+                                  <>
+                                    <button
+                                      onClick={() => { setRemarking({ ticketId: tk.id, nextStatus: null }); setRemarkText('') }}
+                                      className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/70 px-2.5 py-1.5 rounded-lg transition-colors"
+                                    >
+                                      <MessageSquarePlus className="w-3 h-3" /> Add Update
+                                    </button>
+                                    <button
+                                      onClick={() => { setRemarking({ ticketId: tk.id, nextStatus: 'resolved' }); setRemarkText('') }}
+                                      className="flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                                    >
+                                      Mark Resolved <CheckCircle2 className="w-3 h-3" />
+                                    </button>
+                                  </>
+                                )}
+                                {tk.status === 'resolved' && (
+                                  <button
+                                    onClick={() => reopen(tk)}
+                                    className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground px-2.5 py-1.5 rounded-lg transition-colors"
+                                  >
+                                    <RotateCcw className="w-3 h-3" /> Reopen
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </div>
                         </Card>

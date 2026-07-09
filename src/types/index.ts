@@ -107,6 +107,14 @@ export interface MaintenanceTicket {
   tenant?: Tenant
 }
 
+export interface MaintenanceTicketUpdate {
+  id: string
+  ticket_id: string
+  note: string
+  status?: MaintenanceStatus
+  created_at: string
+}
+
 export interface Document {
   id: string
   property_id?: string

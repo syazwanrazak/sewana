@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Plus, Wrench, Upload, FileVideo, X, ExternalLink } from 'lucide-react'
+import { Plus, Wrench, Upload, FileVideo, X, ExternalLink, MessageSquare } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,6 +24,7 @@ interface Ticket {
   attachment_url: string | null
   attachment_name: string | null
   attachment_type: 'image' | 'video' | null
+  updates: { id: string; note: string; created_at: string }[]
 }
 
 const CATEGORIES = ['Plumbing', 'Electrical', 'Air Conditioning', 'Appliances', 'Structural', 'Pest Control', 'General']
@@ -75,7 +76,7 @@ export default function PortalMaintenancePage() {
     const [ticketsRes, contractRes] = await Promise.all([
       supabase
         .from('maintenance_tickets')
-        .select('id, title, description, category, status, priority, created_at, updated_at, attachment_url, attachment_name, attachment_type')
+        .select('id, title, description, category, status, priority, created_at, updated_at, attachment_url, attachment_name, attachment_type, updates:maintenance_ticket_updates(id, note, created_at)')
         .eq('tenant_id', tid)
         .order('created_at', { ascending: false }),
       supabase
@@ -250,7 +251,9 @@ export default function PortalMaintenancePage() {
           </Card>
         ) : (
           <div className="flex flex-col gap-3">
-            {tickets.map(tk => (
+            {tickets.map(tk => {
+              const sortedUpdates = [...(tk.updates ?? [])].sort((a, b) => a.created_at.localeCompare(b.created_at))
+              return (
               <Card key={tk.id} className="p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-2.5 min-w-0">
@@ -281,8 +284,22 @@ export default function PortalMaintenancePage() {
                     View {tk.attachment_type === 'video' ? 'video' : 'photo'}
                   </a>
                 )}
+                {sortedUpdates.length > 0 && (
+                  <div className="mt-3 pt-3 border-t flex flex-col gap-2">
+                    {sortedUpdates.map(u => (
+                      <div key={u.id} className="flex gap-2 text-xs">
+                        <MessageSquare className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                        <div className="min-w-0">
+                          <div className="text-foreground leading-relaxed">{u.note}</div>
+                          <div className="text-muted-foreground mt-0.5">{formatDate(u.created_at)}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </Card>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
